@@ -1,0 +1,17 @@
+base_dir_sql: 'sql_queries/'
+base_dir_bucket: 'data/01_raw' # data directory in the bucket
+person_df:      
+  sql: 'person_df.txt'
+  save_name: 'person_df_20250506.csv'
+data_dfs:
+  condition_df: 
+    fetch: True
+    chunked: 10000
+    sql: 'condition_df.txt'
+    save_name: 'condition_df_20250506.csv'
+  sleep_df:
+    fetch: True
+    chunked: 1000
+    sql: 'sleep_df.txt'
+    save_name: 'sleep_df_20250506.csv'
+

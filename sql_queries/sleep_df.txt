@@ -1,0 +1,11 @@
+SELECT
+     sleep_level.person_id,
+     sleep_level.sleep_date,
+     sleep_level.is_main_sleep,
+     sleep_level.level,
+     CAST(sleep_level.start_datetime AS DATE) as start_datetime,
+     sleep_level.duration_in_min 
+ FROM
+     {my_bucket}.sleep_level sleep_level   
+ WHERE
+     PERSON_ID IN ({person_ids})

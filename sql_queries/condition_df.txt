@@ -1,0 +1,55 @@
+with condition_lookup as (
+select 
+            condition_concept_id,
+            concept_name
+        from
+            {my_bucket}.concept sc
+        inner join 
+            (select distinct condition_concept_id from `{my_bucket}.condition_occurrence`) co
+        on
+            sc.concept_id = co.condition_concept_id
+        where
+            domain_id = 'Condition'
+        and
+            standard_concept = 'S'
+ )
+ 
+SELECT
+    co.person_id,
+    co.condition_concept_id,
+    cl.concept_name as concept_name,
+    co.condition_start_datetime,
+    co.condition_end_datetime,
+    -- co.condition_type_concept_id,
+    -- co.stop_reason,
+    co.visit_occurrence_id,
+    co.condition_source_value,
+    -- co.condition_source_concept_id,
+    -- co.condition_status_source_value,
+    -- co.condition_status_concept_id,
+    visit.concept_name as visit_occurrence_concept_name,  
+    -- c_source_concept.concept_name as source_concept_name,
+    -- c_source_concept.concept_code as source_concept_code,
+    c_source_concept.vocabulary_id as source_vocabulary,  
+    c_status.concept_name as condition_status_concept_name 
+from
+    {my_bucket}.condition_occurrence co
+inner join
+    condition_lookup cl
+on
+    co.condition_concept_id = cl.condition_concept_id
+left join
+    `{my_bucket}.visit_occurrence` v 
+on 
+    co.visit_occurrence_id = v.visit_occurrence_id 
+left join
+    `{my_bucket}.concept` visit 
+    on v.visit_concept_id = visit.concept_id 
+left join
+    `{my_bucket}.concept` c_source_concept 
+    on co.condition_source_concept_id = c_source_concept.concept_id 
+left join
+    `{my_bucket}.concept` c_status 
+    on co.condition_status_concept_id = c_status.concept_id
+where
+    co.person_id in ({person_ids})
