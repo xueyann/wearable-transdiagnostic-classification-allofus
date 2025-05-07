@@ -28,8 +28,8 @@ def main():
                 chunk_size = fetch_dict['chunked'] # get the chunk size
                 i = 0
                 for ids in chunked(person_df['person_id'].astype(str), chunk_size):
-                    sql = replace_person_ids_in_query(sql, ids)
-                    df = fetch_query(sql)
+                    sql_chunk = replace_person_ids_in_query(sql, ids)
+                    df = fetch_query(sql_chunk)
                     # save dataframe with chunk number
                     persist_df(df, fetch_dict['save_name'].replace(".", f"_{i}."), subfolder = base_dir_bucket)
                     i+=1
