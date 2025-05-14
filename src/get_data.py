@@ -1,6 +1,7 @@
 from lib.get_data import fetch_query, replace_person_ids_in_query, fetch_df, persist_df
 from lib.helpers import read_txt, chunked
 import yaml
+import pandas as pd
 
 
 def main():
@@ -27,12 +28,18 @@ def main():
             else:
                 chunk_size = fetch_dict['chunked'] # get the chunk size
                 i = 0
+                # also keep a dictionary of which id corresponds to which file
+                person_file_map = pd.DataFrame()
                 for ids in chunked(person_df['person_id'].astype(str), chunk_size):
+                    # append to person file map
+                    person_file_map = pd.concat([person_file_map, 
+                                                pd.DataFrame.from_dict({key: [i] for key in ids}, orient='index')])
                     sql_chunk = replace_person_ids_in_query(sql, ids)
                     df = fetch_query(sql_chunk)
                     # save dataframe with chunk number
                     persist_df(df, fetch_dict['save_name'].replace(".", f"_{i}."), subfolder = base_dir_bucket)
                     i+=1
+                persist_df(person_file_map, f"person_file_map_{fetch_dict['save_name']}", subfolder = base_dir_bucket)
 
     
 if __name__ == '__main__':
