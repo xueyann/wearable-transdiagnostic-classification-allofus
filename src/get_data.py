@@ -41,6 +41,7 @@ def main():
                     i+=1
                 persist_df(person_file_map, f"person_file_map_{fetch_dict['save_name']}", subfolder = base_dir_bucket)
 
-    
+
+
 if __name__ == '__main__':
     main()
