@@ -1,0 +1,47 @@
+SELECT
+    device.*,
+    d_standard_concept.concept_name as standard_concept_name,
+    d_standard_concept.concept_code as standard_concept_code,
+    d_standard_concept.vocabulary_id as standard_vocabulary,
+    d_type.concept_name as device_type_concept_name,
+    d_source_concept.concept_name as source_concept_name,
+    d_source_concept.concept_code as source_concept_code,
+    d_source_concept.vocabulary_id as source_vocabulary
+FROM
+
+        (SELECT
+            device.person_id,
+            device.device_concept_id,
+            device.device_exposure_start_datetime,
+            device.device_exposure_end_datetime,
+            device.device_type_concept_id,
+            device.device_source_value,
+            device.device_source_concept_id,
+        FROM
+            {my_bucket}.device_exposure device
+        WHERE
+            person_id in ({person_ids}) 
+        AND
+            device_concept_id in (
+                2616666, /* Continuous positive airway pressure (cpap) device */
+                2616648, /* Oral device/appliance used to reduce upper airway collapibility */
+                2616647 /* Oral device/appliance used to reduce upper airway collapibility */
+                )) device
+
+
+LEFT JOIN
+    {my_bucket}.concept d_standard_concept
+ON 
+    device.device_concept_id = d_standard_concept.concept_id 
+LEFT JOIN
+    {my_bucket}.concept d_type
+ON 
+    device.device_type_concept_id = d_type.concept_id 
+LEFT JOIN
+    {my_bucket}.concept d_source_concept
+ON 
+    device.device_source_concept_id = d_source_concept.concept_id
+
+
+
+

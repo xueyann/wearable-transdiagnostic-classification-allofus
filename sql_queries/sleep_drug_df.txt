@@ -1,0 +1,46 @@
+SELECT
+    d_exposure.*,
+    d_standard_concept.concept_name as standard_concept_name,
+    d_standard_concept.concept_code as standard_concept_code,
+    d_standard_concept.vocabulary_id as standard_vocabulary,
+    d_type.concept_name as drug_type_concept_name,
+    d_source_concept.concept_name as source_concept_name,
+    d_source_concept.concept_code as source_concept_code,
+    d_source_concept.vocabulary_id as source_vocabulary
+FROM
+
+        (SELECT
+            d_exposure.person_id,
+            d_exposure.drug_concept_id,
+            d_exposure.drug_exposure_start_datetime,
+            d_exposure.drug_exposure_end_datetime,
+            d_exposure.verbatim_end_date,
+            d_exposure.drug_type_concept_id,
+            d_exposure.drug_source_value,
+            d_exposure.drug_source_concept_id,
+                /* d_exposure.stop_reason,
+                d_exposure.refills,
+                d_exposure.quantity,
+                d_exposure.days_supply,
+                d_exposure.sig,
+                d_exposure.route_concept_id,
+                d_exposure.lot_number,
+                d_exposure.route_source_value,
+                d_exposure.dose_unit_source_value */
+        FROM
+            {my_bucket}.drug_exposure d_exposure
+        WHERE
+            person_id in ({person_ids})) d_exposure
+
+LEFT JOIN
+    {my_bucket}.concept d_standard_concept
+ON 
+    d_exposure.drug_concept_id = d_standard_concept.concept_id 
+LEFT JOIN
+    {my_bucket}.concept d_type
+ON 
+    d_exposure.drug_type_concept_id = d_type.concept_id 
+LEFT JOIN
+    {my_bucket}.concept d_source_concept
+ON 
+    d_exposure.drug_source_concept_id = d_source_concept.concept_id
