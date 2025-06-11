@@ -1,0 +1,43 @@
+sleep_cohort:
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/sleep_drug_df_20250611.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: ['Obstructive sleep apnea',
+              'Insomnia']
+  sleep_conditions_list: ['Sleep apnea',
+                      'Insomnia',
+                      'Central/nonobstroctive sleep apnea',
+                      'Sleep related movement disorders', 
+                      'Sleep disorders',
+                      'Organic or persistent insomnia', 
+                      'Obstructive sleep apnea',
+                      'Circadian rhythm sleep disorder',
+                      'Cataplexy and narcolepsy']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy'
+                    # other conditions
+                    ]
+  }
+  sleep_cohort_save_path: 'data/02_intermediate/study_cohorts/{subcohort}_cohort_20250611.csv'
+  control_cohort_save_path: 'data/02_intermediate/study_cohorts/control_cohort_20250611.csv'
+  devices: [] # TODO

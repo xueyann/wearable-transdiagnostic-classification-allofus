@@ -1,0 +1,19 @@
+phecode_map: 'data/phecode_maps/phecode_map.csv'
+pheinfo: 'data/phecode_maps/pheinfo.csv'
+condition_dfs: 'data/01_raw/condition_df_20250506_*.csv' # note that this is a list of files
+condition_df_transform:
+  col_rename:
+    source_vocabulary: 'vocabulary_id'
+    condition_source_value: 'code'
+    visit_occurrence_concept_name: 'visit_type'
+  keep_cols:
+    - person_id
+    - condition_start_datetime
+    - visit_type
+    - vocabulary_id
+    - code
+  join_cols:
+    - vocabulary_id
+    - code
+  savepath: 'data/02_intermediate/'
+    

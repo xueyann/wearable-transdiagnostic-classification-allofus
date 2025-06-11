@@ -20,9 +20,17 @@ data_dfs:
     sql: 'physical_measurement_df.txt'
     save_name: 'physical_measurement_df_20250514.csv'
   survey_df:
-    fetch: True
+    fetch: False
     chunked: 5000
     sql: 'survey_df.txt'
     save_name: 'survey_df_20250514.csv'
-
-
+  sleep_drug_df:
+    fetch: False
+    chunked: 5000
+    sql: 'sleep_drug_df.txt'
+    save_name: 'drug_df_20250610.csv'
+  osa_device_df:
+    fetch: True
+    chunked: False
+    sql: 'osa_device_df.txt'
+    save_name: 'osa_device_df_20250611.csv'
