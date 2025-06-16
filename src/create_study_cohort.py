@@ -70,9 +70,9 @@ def get_sleep_drugs(fpath_drug, sleep_drugs_list, save_path = None):
     
     return sleep_drugs
 
-def create_sleep_cohort(config):
+def create_cohort(config):
     """
-    Main function for creating sleep cohort
+    Main function for creating cohort
     """
 
     ## fetch config
@@ -123,6 +123,8 @@ def create_sleep_cohort(config):
     cdf_sleep_full = cdf.loc[cdf['description'].isin(config['sleep_conditions_list'])]
     # Remove parent phecode to only take the most specific diagnosis
     cdf_sleep_full = remove_parent_phecodes(cdf_sleep_full)
+    # Create empty dataframe to concat everything
+    cohort = pd.DataFrame()
     for subcohort in config['subcohorts']:
         # Further filter down to only include the subcohorts (OSA and insomnia)
         cdf_sleep = cdf_sleep_full.loc[cdf_sleep_full['description']==subcohort].copy()
@@ -137,9 +139,9 @@ def create_sleep_cohort(config):
         sleep_cohort = sleep_cohort[['person_id', 'primary_diag', 'index_date', 'primary_phecode']]
         # TODO create comorbidities?
         # TODO get the date where they get treated with a device/medication
-        sleep_cohort.to_csv(config['sleep_cohort_save_path'].format(
-                            subcohort=subcohort.lower().replace(' ', '_')), index=False)
-        print(f"Saved sleep cohort {subcohort}")
+        sleep_cohort['subcohort'] = subcohort
+        cohort = pd.concat([cohort, sleep_cohort], axis=0)
+        print(f"Created sleep cohort {subcohort}")
 
     ## 2. create healthy control cohort
     ## apply exclusion criteria to filter patients based on condition
@@ -151,10 +153,13 @@ def create_sleep_cohort(config):
     control_cohort = person_df.loc[(~person_df['person_id'].isin(person_exclude_conditions)) \
                                 & (~person_df['person_id'].isin(sleep_drug_df['person_id']))]
     control_cohort = control_cohort[['person_id']].drop_duplicates()
-    control_cohort.to_csv(config['control_cohort_save_path'], index=False)
+    control_cohort['subcohort'] = 'control'
 
-    print("Saved control cohort")
+    cohort = pd.concat([cohort, control_cohort], axis=0)
 
+    print("Created control cohort")
+
+    cohort.to_csv(config['cohort_save_path'], index=False)
 
     return
 
@@ -164,7 +169,10 @@ def main():
     with open('conf/create_study_cohort.yaml') as f:
          config = yaml.safe_load(f)
 
-    create_sleep_cohort(config['sleep_cohort'])
+    for cohort, cohort_conf in config.items():
+        print(f"Creating {cohort}\n......")
+
+        create_cohort(cohort_conf)
 
     
     return

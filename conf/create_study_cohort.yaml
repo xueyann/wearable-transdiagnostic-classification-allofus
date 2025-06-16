@@ -38,6 +38,64 @@ sleep_cohort:
                     # other conditions
                     ]
   }
-  sleep_cohort_save_path: 'data/02_intermediate/study_cohorts/{subcohort}_cohort_20250611.csv'
-  control_cohort_save_path: 'data/02_intermediate/study_cohorts/control_cohort_20250611.csv'
+  # sleep_cohort_save_path: 'data/02_intermediate/study_cohorts/{subcohort}_cohort_20250611.csv'
+  # control_cohort_save_path: 'data/02_intermediate/study_cohorts/control_cohort_20250611.csv'
+  cohort_save_path: 'data/02_intermediate/study_cohorts/sleep_cohort_20250611.csv'
   devices: [] # TODO
+
+mh_cohort:
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: ['Anxiety disorder',
+              'Generalized anxiety disorder',
+              'Major depressive disorder',
+              'Bipolar',
+              'Posttraumatic stress disorder']
+  sleep_conditions_list: ['Anxiety disorder',                                                                   7350
+                          'Depression',
+                          'Major depressive disorder',
+                          'Generalized anxiety disorder',
+                          'Adjustment reaction',
+                          'Tobacco use disorder',
+                          'Bipolar',
+                          'Posttraumatic stress disorder',
+                          'Mood disorders',
+                          'Dysthymic disorder',
+                          'Attention deficit hyperactivity disorder',
+                          'Substance addiction and disorders',
+                          'Swelling, mass, or lump in head and neck [Space-occupying lesion, intracranial NOS]',
+                          'Memory loss',
+                          'Agorophobia, social phobia, and panic disorder',
+                          'Neurological disorders',
+                          'Alteration of consciousness',
+                          'Alcoholism',
+                          'Tension headache',
+                          'Alcohol-related disorders']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy'
+                    # other conditions
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/mh_cohort_20250616.csv'
