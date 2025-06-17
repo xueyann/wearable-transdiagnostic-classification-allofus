@@ -1,0 +1,21 @@
+physical_measurement_df:
+  fpath: 'data/01_raw/physical_measurement_df_20250514.csv'
+  incl_measurements : ['Computed waist circumference, mean of closest two measures',
+                      'Computed hip circumference, mean of closest two measures',
+                      'Computed systolic blood pressure, mean of 2nd and 3rd measures',
+                      'Computed diastolic blood pressure, mean of 2nd and 3rd measures',
+                      'Body mass index (BMI) [Ratio]']
+  rename_dict: {
+                'Computed waist circumference, mean of closest two measures': 'waist_circum',
+                'Computed hip circumference, mean of closest two measures': 'hip_circum',
+                'Computed systolic blood pressure, mean of 2nd and 3rd measures': 'bp_systolic',
+                'Computed diastolic blood pressure, mean of 2nd and 3rd measures': 'bp_diastolic',
+                'Body mass index (BMI) [Ratio]': 'BMI'
+                }
+  save_path: 'data/02_intermediate/physical_measurement_df_20250617.csv'
+
+person_df:
+  fpath: 'data/01_raw/person_genomics_df_20250513.csv'
+  save_path: 'data/02_intermediate/person_genomics_df_20250617.csv'
+  excl_values: {'race': ['PMI: Skip', 'I prefer not to answer', 'None Indicated', 'None of these'],
+                'sex_at_birth': ['I prefer not to answer', 'Intersex', 'PMI: Skip']}
