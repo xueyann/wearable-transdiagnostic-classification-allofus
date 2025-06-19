@@ -13,7 +13,8 @@ def label_parent_phecode(phecodes: List):
     """
     is_parent = {}
     for i in phecodes:
-        is_parent[i] = any([j.startswith(i) and j!=i for j in phecodes]) # this check whether the i-th element is a parent of any other element in the list
+        # this check whether the i-th element is a parent of any other element in the list
+        is_parent[i] = any([j.startswith(i) and j!=i for j in phecodes]) 
     return is_parent
 
 # # Test the helper function
@@ -22,13 +23,18 @@ def label_parent_phecode(phecodes: List):
 # is_parent
 
 def to_float_or_int(num):
+    """
+    Return int if number if an integer otherwise float
+    """
     if float(num).is_integer():
         return int(float(num))
     return float(num)
 
 def remove_parent_phecodes(df):
     """
-    Function to remove parent phecodes"""
+    Function to remove parent phecodes to only keep the most
+    specific diagnosis
+    """
     # remove trailing zero in phecode
     df['phecode_float'] = df['phecode'].apply(lambda x: str(to_float_or_int(x)))
     df_is_parent = df.groupby('person_id').apply(lambda x: pd.Series(label_parent_phecode(x['phecode_float']))).reset_index().rename(columns={0: 'is_parent',
@@ -38,6 +44,11 @@ def remove_parent_phecodes(df):
     return df
 
 def get_sleep_drugs(fpath_drug, sleep_drugs_list, save_path = None):
+    """
+    Function to get drugs that affect sleep 
+    Also includes some engineering because the source value
+    of the drug names also include dosage, etc
+    """
     # Load prescription data and filter only sleep drugs
     i = 0
     sleep_drugs = pd.DataFrame()
@@ -116,7 +127,6 @@ def create_cohort(config):
         cdf_part_path = cdf_path.format(i=i)
     print('Fetched condition df')
     
-
     ############### Cohort creation ################
     ## 1. create sleep cohort (OSA and insomnia)
     # Keep only the sleep conditions
@@ -125,7 +135,7 @@ def create_cohort(config):
     cdf_sleep_full = remove_parent_phecodes(cdf_sleep_full)
     # Create empty dataframe to concat everything
     cohort = pd.DataFrame()
-    for subcohort in config['subcohorts']:
+    for subcohort, subcohort_rename in config['subcohorts'].items():
         # Further filter down to only include the subcohorts (OSA and insomnia)
         cdf_sleep = cdf_sleep_full.loc[cdf_sleep_full['description']==subcohort].copy()
         # Get the index date for each person (earliest diagnosis)
@@ -144,22 +154,22 @@ def create_cohort(config):
         #                                                 'description': 'primary_diag'})
 
         sleep_cohort = sleep_cohort[['person_id', 'primary_diag', 'index_date']]
+        # Rename subcohort
+        sleep_cohort['subcohort'] = subcohort_rename
         # TODO create comorbidities?
         # TODO get the date where they get treated with a device/medication
         cohort = pd.concat([cohort, sleep_cohort], axis=0)
-        print(f"Created sleep cohort {subcohort}")
+        print(f"Created sleep cohort {subcohort_rename}")
     
     # Combine patients with two or more primary diagnoses
     cohort_index = cohort[['person_id', 'index_date']]\
                         .groupby('person_id', as_index=False).min()
-    cohort = cohort[['person_id', 'primary_diag']]\
+    cohort = cohort[['person_id', 'subcohort']]\
                     .groupby('person_id').apply(\
-                    lambda x: ' + '.join(sorted(x['primary_diag'].unique().tolist())))\
-                    .reset_index().rename(columns={0: 'primary_diag'})
+                    lambda x: ' + '.join(sorted(x['subcohort'].unique().tolist())))\
+                    .reset_index().rename(columns={0: 'subcohort'})
 
     cohort = cohort.merge(cohort_index, on = 'person_id')
-    cohort['subcohort'] = cohort['primary_diag']
-
 
     ## 2. create healthy control cohort
     ## apply exclusion criteria to filter patients based on condition

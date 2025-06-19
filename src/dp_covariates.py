@@ -18,9 +18,21 @@ def process_demo(config):
 
     person_df.to_csv(save_path, index=False)
     
-    
     return person_df
 
+def process_osa_device(config):
+    fpath = config['fpath']
+    save_path = config['save_path']
+
+    device_df = pd.read_csv(fpath)
+
+    # Get the earliest date of OSA device prescription
+    osa_device = device_df[['person_id', 'device_exposure_start_datetime']]\
+            .groupby('person_id', as_index=False ).min().rename(columns={'device_exposure_start_datetime': 
+                                                                         'osa_device_date'})
+    osa_device.to_csv(save_path, index=False)
+
+    return osa_device
 
 
 def process_physical_measurement(config):
@@ -66,6 +78,7 @@ def main():
          config = yaml.safe_load(f)
     process_physical_measurement(config['physical_measurement_df'])
     process_demo(config['person_df'])
+    process_osa_device(config['osa_device_df'])
 
 if __name__ == '__main__':
 

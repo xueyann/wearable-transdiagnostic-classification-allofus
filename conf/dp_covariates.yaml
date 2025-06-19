@@ -19,3 +19,7 @@ person_df:
   save_path: 'data/02_intermediate/person_genomics_df_20250617.csv'
   excl_values: {'race': ['PMI: Skip', 'I prefer not to answer', 'None Indicated', 'None of these'],
                 'sex_at_birth': ['I prefer not to answer', 'Intersex', 'PMI: Skip']}
+
+osa_device_df:
+  fpath: 'data/01_raw/osa_device_df_20250611.csv'
+  save_path: 'data/02_intermediate/osa_device_df_20250619.csv'
