@@ -128,20 +128,38 @@ def create_cohort(config):
     for subcohort in config['subcohorts']:
         # Further filter down to only include the subcohorts (OSA and insomnia)
         cdf_sleep = cdf_sleep_full.loc[cdf_sleep_full['description']==subcohort].copy()
-        # Get the index date for each person
+        # Get the index date for each person (earliest diagnosis)
         index_df = cdf_sleep.groupby('person_id', as_index = False).apply(lambda x: x.min()['condition_start_date'])\
                         .rename(columns={None: 'condition_start_date'})
-        # Merge on person id and index date to get primary diagnosis
+        # Merge on person id to get primary diagnosis
         sleep_cohort = index_df.merge(cdf_sleep, on=['person_id', 'condition_start_date'], how = 'inner')\
                         .rename(columns={'condition_start_date': 'index_date', 
                                         'phecode': 'primary_phecode', 
                                         'description': 'primary_diag'})
-        sleep_cohort = sleep_cohort[['person_id', 'primary_diag', 'index_date', 'primary_phecode']]
+
+        # sleep_cohort = index_df.merge(cdf_sleep[['person_id', 'phecode', 'description']], 
+        #                               on='person_id', how = 'inner')\
+        #                                 .rename(columns={'condition_start_date': 'index_date', 
+        #                                                 'phecode': 'primary_phecode', 
+        #                                                 'description': 'primary_diag'})
+
+        sleep_cohort = sleep_cohort[['person_id', 'primary_diag', 'index_date']]
         # TODO create comorbidities?
         # TODO get the date where they get treated with a device/medication
-        sleep_cohort['subcohort'] = subcohort
         cohort = pd.concat([cohort, sleep_cohort], axis=0)
         print(f"Created sleep cohort {subcohort}")
+    
+    # Combine patients with two or more primary diagnoses
+    cohort_index = cohort[['person_id', 'index_date']]\
+                        .groupby('person_id', as_index=False).min()
+    cohort = cohort[['person_id', 'primary_diag']]\
+                    .groupby('person_id').apply(\
+                    lambda x: ' + '.join(sorted(x['primary_diag'].unique().tolist())))\
+                    .reset_index().rename(columns={0: 'primary_diag'})
+
+    cohort = cohort.merge(cohort_index, on = 'person_id')
+    cohort['subcohort'] = cohort['primary_diag']
+
 
     ## 2. create healthy control cohort
     ## apply exclusion criteria to filter patients based on condition
@@ -158,6 +176,8 @@ def create_cohort(config):
     cohort = pd.concat([cohort, control_cohort], axis=0)
 
     print("Created control cohort")
+
+    print(cohort.groupby('subcohort').count())
 
     cohort.to_csv(config['cohort_save_path'], index=False)
 
