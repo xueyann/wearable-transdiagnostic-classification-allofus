@@ -129,18 +129,25 @@ def create_cohort(config):
     
     ############### Cohort creation ################
     ## 1. create sleep cohort (OSA and insomnia)
-    # Keep only the sleep conditions
+    # Keep only the relevant conditions
     cdf_sleep_full = cdf.loc[cdf['description'].isin(config['sleep_conditions_list'])]
     # Remove parent phecode to only take the most specific diagnosis
     cdf_sleep_full = remove_parent_phecodes(cdf_sleep_full)
     # Create empty dataframe to concat everything
     cohort = pd.DataFrame()
     for subcohort, subcohort_rename in config['subcohorts'].items():
-        # Further filter down to only include the subcohorts (OSA and insomnia)
+        print(subcohort)
+        # Further filter down to only include the subcohort
         cdf_sleep = cdf_sleep_full.loc[cdf_sleep_full['description']==subcohort].copy()
+        if cdf_sleep.empty:
+            # print(f"Np patient with condition {subcohort}, skipping..")
+            # continue
+            raise Exception(f"There is no patient with diagnosis {subcohort}, please check the condition list and spelling")
         # Get the index date for each person (earliest diagnosis)
+
         index_df = cdf_sleep.groupby('person_id', as_index = False).apply(lambda x: x.min()['condition_start_date'])\
                         .rename(columns={None: 'condition_start_date'})
+        
         # Merge on person id to get primary diagnosis
         sleep_cohort = index_df.merge(cdf_sleep, on=['person_id', 'condition_start_date'], how = 'inner')\
                         .rename(columns={'condition_start_date': 'index_date', 
@@ -181,7 +188,7 @@ def create_cohort(config):
     control_cohort = person_df.loc[(~person_df['person_id'].isin(person_exclude_conditions)) \
                                 & (~person_df['person_id'].isin(sleep_drug_df['person_id']))]
     control_cohort = control_cohort[['person_id']].drop_duplicates()
-    control_cohort['subcohort'] = 'control'
+    control_cohort['subcohort'] = 'Control'
 
     cohort = pd.concat([cohort, control_cohort], axis=0)
 
@@ -200,9 +207,9 @@ def main():
          config = yaml.safe_load(f)
 
     for cohort, cohort_conf in config.items():
-        print(f"Creating {cohort}\n......")
-
-        create_cohort(cohort_conf)
+        if cohort_conf['run']:
+            print(f"Creating {cohort}\n......")
+            create_cohort(cohort_conf)
 
     
     return
