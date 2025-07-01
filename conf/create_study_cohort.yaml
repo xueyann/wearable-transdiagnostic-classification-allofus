@@ -1,0 +1,838 @@
+osa_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/sleep_drug_df_20250611.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Obstructive sleep apnea': 'OSA'}
+  sleep_conditions_list: ['Sleep apnea',
+                      'Insomnia',
+                      'Central/nonobstroctive sleep apnea',
+                      'Sleep related movement disorders', 
+                      'Sleep disorders',
+                      'Organic or persistent insomnia', 
+                      'Obstructive sleep apnea',
+                      'Circadian rhythm sleep disorder',
+                      'Cataplexy and narcolepsy']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/osa_cohort_20250626.csv'
+
+insomnia_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/sleep_drug_df_20250611.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Insomnia': 'Insomnia'}
+  sleep_conditions_list: ['Sleep apnea',
+                      'Insomnia',
+                      'Central/nonobstroctive sleep apnea',
+                      'Sleep related movement disorders', 
+                      'Sleep disorders',
+                      'Organic or persistent insomnia', 
+                      'Obstructive sleep apnea',
+                      'Circadian rhythm sleep disorder',
+                      'Cataplexy and narcolepsy']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/insomnia_cohort_20250626.csv'
+
+sleep_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/sleep_drug_df_20250611.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Insomnia': 'Insomnia',
+              'Obstructive sleep apnea': 'OSA'}
+  sleep_conditions_list: ['Sleep apnea',
+                      'Insomnia',
+                      'Central/nonobstroctive sleep apnea',
+                      'Sleep related movement disorders', 
+                      'Sleep disorders',
+                      'Organic or persistent insomnia', 
+                      'Obstructive sleep apnea',
+                      'Circadian rhythm sleep disorder',
+                      'Cataplexy and narcolepsy']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/sleep_cohort_20250626.csv'
+
+mh_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Anxiety disorder': 'Anxiety',
+              'Generalized anxiety disorder': 'GAD',
+              'Major depressive disorder': 'MDD',
+              'Bipolar': 'Bipolar',
+              'Posttraumatic stress disorder': 'PTSD'
+              }
+  sleep_conditions_list: ['Anxiety disorder',                                                                   7350
+                          'Depression',
+                          'Major depressive disorder',
+                          'Generalized anxiety disorder',
+                          'Adjustment reaction',
+                          'Tobacco use disorder',
+                          'Bipolar',
+                          'Posttraumatic stress disorder',
+                          'Mood disorders',
+                          'Dysthymic disorder',
+                          'Attention deficit hyperactivity disorder',
+                          'Substance addiction and disorders',
+                          'Swelling, mass, or lump in head and neck [Space-occupying lesion, intracranial NOS]',
+                          'Memory loss',
+                          'Agorophobia, social phobia, and panic disorder',
+                          'Neurological disorders',
+                          'Alteration of consciousness',
+                          'Alcoholism',
+                          'Tension headache',
+                          'Alcohol-related disorders']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/mh_cohort_20250626.csv'
+
+mdd_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {
+            'Major depressive disorder': 'MDD'
+              }
+  sleep_conditions_list: ['Anxiety disorder',                                                                   7350
+                          'Depression',
+                          'Major depressive disorder',
+                          'Generalized anxiety disorder',
+                          'Adjustment reaction',
+                          'Tobacco use disorder',
+                          'Bipolar',
+                          'Posttraumatic stress disorder',
+                          'Mood disorders',
+                          'Dysthymic disorder',
+                          'Attention deficit hyperactivity disorder',
+                          'Substance addiction and disorders',
+                          'Swelling, mass, or lump in head and neck [Space-occupying lesion, intracranial NOS]',
+                          'Memory loss',
+                          'Agorophobia, social phobia, and panic disorder',
+                          'Neurological disorders',
+                          'Alteration of consciousness',
+                          'Alcoholism',
+                          'Tension headache',
+                          'Alcohol-related disorders']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/mdd_cohort_20250626.csv'
+
+anxiety_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Anxiety disorder': 'Anxiety',
+              'Generalized anxiety disorder': 'Anxiety'}
+  sleep_conditions_list: ['Anxiety disorder',                                                                   7350
+                          'Depression',
+                          'Major depressive disorder',
+                          'Generalized anxiety disorder',
+                          'Adjustment reaction',
+                          'Tobacco use disorder',
+                          'Bipolar',
+                          'Posttraumatic stress disorder',
+                          'Mood disorders',
+                          'Dysthymic disorder',
+                          'Attention deficit hyperactivity disorder',
+                          'Substance addiction and disorders',
+                          'Swelling, mass, or lump in head and neck [Space-occupying lesion, intracranial NOS]',
+                          'Memory loss',
+                          'Agorophobia, social phobia, and panic disorder',
+                          'Neurological disorders',
+                          'Alteration of consciousness',
+                          'Alcoholism',
+                          'Tension headache',
+                          'Alcohol-related disorders']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/anxiety_cohort_20250626.csv'
+
+bipolar_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Bipolar': 'Bipolar'}
+  sleep_conditions_list: ['Anxiety disorder',                                                                   7350
+                          'Depression',
+                          'Major depressive disorder',
+                          'Generalized anxiety disorder',
+                          'Adjustment reaction',
+                          'Tobacco use disorder',
+                          'Bipolar',
+                          'Posttraumatic stress disorder',
+                          'Mood disorders',
+                          'Dysthymic disorder',
+                          'Attention deficit hyperactivity disorder',
+                          'Substance addiction and disorders',
+                          'Swelling, mass, or lump in head and neck [Space-occupying lesion, intracranial NOS]',
+                          'Memory loss',
+                          'Agorophobia, social phobia, and panic disorder',
+                          'Neurological disorders',
+                          'Alteration of consciousness',
+                          'Alcoholism',
+                          'Tension headache',
+                          'Alcohol-related disorders']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/bipolar_cohort_20250626.csv'
+
+ptsd_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Posttraumatic stress disorder': 'PTSD'}
+  sleep_conditions_list: ['Anxiety disorder',                                                                   7350
+                          'Depression',
+                          'Major depressive disorder',
+                          'Generalized anxiety disorder',
+                          'Adjustment reaction',
+                          'Tobacco use disorder',
+                          'Bipolar',
+                          'Posttraumatic stress disorder',
+                          'Mood disorders',
+                          'Dysthymic disorder',
+                          'Attention deficit hyperactivity disorder',
+                          'Substance addiction and disorders',
+                          'Swelling, mass, or lump in head and neck [Space-occupying lesion, intracranial NOS]',
+                          'Memory loss',
+                          'Agorophobia, social phobia, and panic disorder',
+                          'Neurological disorders',
+                          'Alteration of consciousness',
+                          'Alcoholism',
+                          'Tension headache',
+                          'Alcohol-related disorders']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/ptsd_cohort_20250626.csv'
+
+
+mh_general_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Anxiety disorder': 'MH condition',
+              'Generalized anxiety disorder': 'MH condition',
+              'Major depressive disorder': 'MH condition',
+              'Bipolar': 'MH condition',
+              'Posttraumatic stress disorder': 'MH condition'
+              }
+  sleep_conditions_list: ['Anxiety disorder',                                                                   7350
+                          'Depression',
+                          'Major depressive disorder',
+                          'Generalized anxiety disorder',
+                          'Adjustment reaction',
+                          'Tobacco use disorder',
+                          'Bipolar',
+                          'Posttraumatic stress disorder',
+                          'Mood disorders',
+                          'Dysthymic disorder',
+                          'Attention deficit hyperactivity disorder',
+                          'Substance addiction and disorders',
+                          'Swelling, mass, or lump in head and neck [Space-occupying lesion, intracranial NOS]',
+                          'Memory loss',
+                          'Agorophobia, social phobia, and panic disorder',
+                          'Neurological disorders',
+                          'Alteration of consciousness',
+                          'Alcoholism',
+                          'Tension headache',
+                          'Alcohol-related disorders']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Obstructive sleep apnea',
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/mh_general_cohort_20250626.csv'
+
+osa_vs_mh_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Obstructive sleep apnea': 'OSA',
+              'Anxiety disorder': 'MH condition',
+              'Generalized anxiety disorder': 'MH condition',
+              'Major depressive disorder': 'MH condition',
+              'Bipolar': 'MH condition',
+              'Posttraumatic stress disorder': 'MH condition'
+              }
+  sleep_conditions_list: ['Sleep apnea',
+                          'Insomnia',
+                          'Central/nonobstroctive sleep apnea',
+                          'Sleep related movement disorders', 
+                          'Sleep disorders',
+                          'Organic or persistent insomnia', 
+                          'Obstructive sleep apnea',
+                          'Circadian rhythm sleep disorder',
+                          'Cataplexy and narcolepsy',
+                          'Anxiety disorder',
+                          'Depression',
+                          'Major depressive disorder',
+                          'Generalized anxiety disorder',
+                          'Adjustment reaction',
+                          'Tobacco use disorder',
+                          'Bipolar',
+                          'Posttraumatic stress disorder',
+                          'Mood disorders',
+                          'Dysthymic disorder',
+                          'Attention deficit hyperactivity disorder',
+                          'Substance addiction and disorders',
+                          'Swelling, mass, or lump in head and neck [Space-occupying lesion, intracranial NOS]',
+                          'Memory loss',
+                          'Agorophobia, social phobia, and panic disorder',
+                          'Neurological disorders',
+                          'Alteration of consciousness',
+                          'Alcoholism',
+                          'Tension headache',
+                          'Alcohol-related disorders']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/osa_vs_mh_cohort_20250626.csv'
+
+
+cvd_vs_control_cohort:
+  run: True
+  person_df: 'data/01_raw/person_genomics_df_20250513.csv'
+  condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
+  drug_list: 'conf/drug_list.yaml'
+  prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
+  sleep_drugs_save_path: 'data/02_intermediate/mh_excl_drug_df_20250616.csv'
+  sleep_affecting_drug_classes: ['hypnotics_and_sedatives',
+                                'ssri',
+                                'snri',
+                                'atypical_antipsychotics',
+                                'typical_antipsychotics',
+                                'stimulants',
+                                'anticonvulsants',
+                                'anxiolytics']
+  subcohorts: {'Coronary atherosclerosis': 'CVD',
+              'Congestive heart failure (CHF) NOS': 'CVD',
+              'Pulmonary embolism and infarction, acute': 'CVD',
+              'Cerebral artery occlusion, with cerebral infarction': 'CVD',
+              'Heart failure with preserved EF [Diastolic heart failure]': 'CVD',
+              'Myocardial infarction': 'CVD',
+              'Occlusion and stenosis of precerebral arteries': 'CVD',
+              'Atherosclerosis of aorta': 'CVD',
+              'Heart failure with reduced EF [Systolic or combined heart failure]': 'CVD',
+              'Cerebral aneurysm': 'CVD',
+              'Cerebral ischemia': 'CVD',
+              'Heart failure NOS': 'CVD',
+              'Atherosclerosis': 'CVD',
+              'Acute, but ill-defined cerebrovascular disease': 'CVD',
+              'Other acute and subacute forms of ischemic heart disease': 'CVD',
+              'Aneurysm and dissection of heart': 'CVD',
+              'Occlusion of cerebral arteries': 'CVD',
+              'Occlusion of cerebral arteries, with cerebral infarction': 'CVD',
+              'Atrioventricular block, complete': 'CVD',
+              'Cerebral atherosclerosis': 'CVD',
+              'Heart transplant/surgery': 'CVD'}
+  sleep_conditions_list: ['Coronary atherosclerosis',
+                          'Congestive heart failure (CHF) NOS',
+                          'Pulmonary embolism and infarction, acute',
+                          'Cerebral artery occlusion, with cerebral infarction',
+                          'Heart failure with preserved EF [Diastolic heart failure]',
+                          'Myocardial infarction',
+                          'Occlusion and stenosis of precerebral arteries',
+                          'Atherosclerosis of aorta',
+                          'Heart failure with reduced EF [Systolic or combined heart failure]',
+                          'Cerebral aneurysm',
+                          'Cerebral ischemia',
+                          'Heart failure NOS',
+                          'Atherosclerosis',
+                          'Acute, but ill-defined cerebrovascular disease',
+                          'Other acute and subacute forms of ischemic heart disease',
+                          'Aneurysm and dissection of heart',
+                          'Occlusion of cerebral arteries',
+                          'Occlusion of cerebral arteries, with cerebral infarction',
+                          'Atrioventricular block, complete',
+                          'Cerebral atherosclerosis',
+                          'Heart transplant/surgery']
+  exclusion_conditions: { # exclusion based on either group of condition or condition description
+    'group': ['mental disorders'],
+    'description': [ # sleep conditions
+                    'Obstructive sleep apnea',
+                    'Sleep apnea',
+                    'Insomnia',
+                    'Central/nonobstroctive sleep apnea',
+                    'Sleep related movement disorders', 
+                    'Sleep disorders',
+                    'Organic or persistent insomnia', 
+                    'Circadian rhythm sleep disorder',
+                    'Cataplexy and narcolepsy',
+                    # severe cvd conditions
+                    'Coronary atherosclerosis',
+                    'Congestive heart failure (CHF) NOS',
+                    'Pulmonary embolism and infarction, acute',
+                    'Cerebral artery occlusion, with cerebral infarction',
+                    'Heart failure with preserved EF [Diastolic heart failure]',
+                    'Myocardial infarction',
+                    'Occlusion and stenosis of precerebral arteries',
+                    'Atherosclerosis of aorta',
+                    'Heart failure with reduced EF [Systolic or combined heart failure]',
+                    'Cerebral aneurysm',
+                    'Cerebral ischemia',
+                    'Heart failure NOS',
+                    'Atherosclerosis',
+                    'Acute, but ill-defined cerebrovascular disease',
+                    'Other acute and subacute forms of ischemic heart disease',
+                    'Aneurysm and dissection of heart',
+                    'Occlusion of cerebral arteries',
+                    'Occlusion of cerebral arteries, with cerebral infarction',
+                    'Atrioventricular block, complete',
+                    'Cerebral atherosclerosis',
+                    'Heart transplant/surgery'
+                    ]
+  }
+  cohort_save_path: 'data/02_intermediate/study_cohorts/cvd_cohort_20250626.csv'

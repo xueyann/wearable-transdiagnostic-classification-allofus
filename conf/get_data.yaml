@@ -5,13 +5,32 @@ person_df:
   save_name: 'person_df_20250506.csv'
 data_dfs:
   condition_df: 
-    fetch: True
+    fetch: False
     chunked: 10000
     sql: 'condition_df.txt'
     save_name: 'condition_df_20250506.csv'
   sleep_df:
-    fetch: True
+    fetch: False
     chunked: 1000
     sql: 'sleep_df.txt'
-    save_name: 'sleep_df_20250506.csv'
-
+    save_name: 'sleep_df_20250513.csv'
+  physical_measurement_df:
+    fetch: False
+    chunked: False
+    sql: 'physical_measurement_df.txt'
+    save_name: 'physical_measurement_df_20250514.csv'
+  survey_df:
+    fetch: False
+    chunked: 5000
+    sql: 'survey_df.txt'
+    save_name: 'survey_df_20250514.csv'
+  sleep_drug_df:
+    fetch: False
+    chunked: 5000
+    sql: 'sleep_drug_df.txt'
+    save_name: 'drug_df_20250610.csv'
+  osa_device_df:
+    fetch: True
+    chunked: False
+    sql: 'osa_device_df.txt'
+    save_name: 'osa_device_df_20250611.csv'

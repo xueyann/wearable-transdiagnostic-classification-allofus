@@ -1,0 +1,21 @@
+SELECT
+        answer.person_id,
+        answer.survey_datetime,
+        answer.survey,
+        answer.question_concept_id,
+        answer.question,
+        answer.answer_concept_id,
+        answer.answer,
+        answer.survey_version_concept_id,
+        answer.survey_version_name  
+FROM
+    {my_bucket}.ds_survey answer
+WHERE
+    answer.survey in ('Overall Health', 
+                    'The Basics', 
+                    'Social Determinants of Health',
+                    'Personal and Family Health History',
+                    'Lifestyle', 
+                    'Healthcare Access & Utilization')
+AND
+    answer.person_id in ({person_ids})

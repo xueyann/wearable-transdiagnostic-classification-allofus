@@ -36,4 +36,3 @@ def fetch_df(fname, bucket_dest = os.getenv('WORKSPACE_BUCKET'), subfolder='data
     # save dataframe in a csv file in the same workspace as the notebook
     df = pd.read_csv(f"./{subfolder}/{fname}")
     return df
-
