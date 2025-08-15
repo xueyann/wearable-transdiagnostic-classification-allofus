@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import yaml
 
 
@@ -12,9 +13,9 @@ def process_demo(config):
 
     person_df = pd.read_csv(fpath)
 
-    # Exclude patients if they have not answered key demographic questions
+    # Replace certain answers with nan
     for k, v in excl_values.items():
-        person_df = person_df.loc[~person_df[k].isin(v)]
+        person_df.loc[person_df[k].isin(v), k] = np.nan
 
     person_df.to_csv(save_path, index=False)
     

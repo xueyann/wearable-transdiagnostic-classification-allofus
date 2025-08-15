@@ -16,9 +16,12 @@ physical_measurement_df:
 
 person_df:
   fpath: 'data/01_raw/person_genomics_df_20250513.csv'
-  save_path: 'data/02_intermediate/person_genomics_df_20250617.csv'
+  save_path: 'data/02_intermediate/person_genomics_df_20250805.csv'
   excl_values: {'race': ['PMI: Skip', 'I prefer not to answer', 'None Indicated', 'None of these'],
-                'sex_at_birth': ['I prefer not to answer', 'Intersex', 'PMI: Skip']}
+                'sex_at_birth': ['I prefer not to answer', 'Intersex', 'PMI: Skip'],
+                'ethnicity': ['What Race Ethnicity: Race Ethnicity None Of These',
+                              'PMI: Prefer Not To Answer',
+                              'PMI: Skip']}
 
 osa_device_df:
   fpath: 'data/01_raw/osa_device_df_20250611.csv'
