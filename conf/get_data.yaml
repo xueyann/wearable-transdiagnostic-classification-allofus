@@ -1,36 +1,44 @@
 base_dir_sql: 'sql_queries/'
-base_dir_bucket: 'data/01_raw' # data directory in the bucket
+base_dir_bucket: 'data' # data directory in the bucket
 person_df:      
   sql: 'person_df.txt'
-  save_name: 'person_df_20250506.csv'
+  save_name: '01_raw/person_df_20250506.csv'
 data_dfs:
   condition_df: 
     fetch: False
     chunked: 10000
     sql: 'condition_df.txt'
-    save_name: 'condition_df_20250506.csv'
+    save_name: '01_raw/condition_df_20250506.csv'
   sleep_df:
     fetch: False
     chunked: 1000
     sql: 'sleep_df.txt'
-    save_name: 'sleep_df_20250513.csv'
+    save_name: '01_raw/sleep_df_20250513.csv'
   physical_measurement_df:
     fetch: False
     chunked: False
     sql: 'physical_measurement_df.txt'
-    save_name: 'physical_measurement_df_20250514.csv'
+    save_name: '01_raw/physical_measurement_df_20250514.csv'
   survey_df:
     fetch: False
     chunked: 5000
     sql: 'survey_df.txt'
-    save_name: 'survey_df_20250514.csv'
+    save_name: '01_raw/survey_df_20250514.csv'
   sleep_drug_df:
     fetch: False
     chunked: 5000
     sql: 'sleep_drug_df.txt'
-    save_name: 'drug_df_20250610.csv'
+    save_name: '01_raw/drug_df_20250610.csv'
   osa_device_df:
-    fetch: True
+    fetch: False
     chunked: False
     sql: 'osa_device_df.txt'
-    save_name: 'osa_device_df_20250611.csv'
+    save_name: '01_raw/osa_device_df_20250611.csv'
+
+filtered_dfs:
+  hr_df:
+    filter_file_dir: 'data/02_intermediate/'
+    filter_file_pattern: 'sleep_data_sleep_cohort_'
+    fetch: True
+    sql: 'hr_df.txt'
+    save_name: '02_intermediate/heart_rate_20250925/hr_df_20250925_{i}.csv'
