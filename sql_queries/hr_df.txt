@@ -1,0 +1,15 @@
+WITH filter_pairs AS (
+    {filter_string}
+)
+SELECT
+    hr.person_id,
+    hr.`datetime`,
+    hr.heart_rate_value as heart_rate 
+FROM
+    {my_bucket}.heart_rate_minute_level hr
+JOIN 
+    filter_pairs f
+ON  
+    hr.person_id = f.person_id
+AND 
+    DATE(hr.`datetime`) = f.d
