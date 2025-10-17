@@ -39,6 +39,12 @@ filtered_dfs:
   hr_df:
     filter_file_dir: 'data/02_intermediate/'
     filter_file_pattern: 'sleep_data_sleep_cohort_'
-    fetch: True
+    fetch: False
     sql: 'hr_df.txt'
     save_name: '02_intermediate/heart_rate_20250925/hr_df_20250925_{i}.csv'
+  activity_df:
+    filter_file_dir: 'data/02_intermediate/'
+    filter_file_pattern: 'sleep_data_sleep_cohort_'
+    fetch: True
+    sql: 'activity_df.txt'
+    save_name: '02_intermediate/activity_20251002/hr_df_20251002_{i}.csv'
