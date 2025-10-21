@@ -1,6 +1,6 @@
 
 diabetes_vs_control_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -85,7 +85,7 @@ diabetes_vs_control_cohort:
   cohort_save_path: 'data/02_intermediate/study_cohorts_20250902/diabetes_cohort_20250902.csv'
 
 osa_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -164,7 +164,7 @@ osa_cohort:
   cohort_save_path: 'data/02_intermediate/study_cohorts_20250902/osa_cohort_20250902.csv'
 
 insomnia_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -243,7 +243,7 @@ insomnia_cohort:
   cohort_save_path: 'data/02_intermediate/study_cohorts_20250902/insomnia_cohort_20250902.csv'
 
 sleep_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -323,7 +323,7 @@ sleep_cohort:
   cohort_save_path: 'data/02_intermediate/study_cohorts_20250902/sleep_cohort_20250902.csv'
 
 mh_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -512,7 +512,7 @@ mdd_cohort:
   cohort_save_path: 'data/02_intermediate/study_cohorts_20250902/mdd_cohort_20250902.csv'
 
 anxiety_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -604,7 +604,7 @@ anxiety_cohort:
   cohort_save_path: 'data/02_intermediate/study_cohorts_20250902/anxiety_cohort_20250902.csv'
 
 bipolar_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -695,7 +695,7 @@ bipolar_cohort:
   cohort_save_path: 'data/02_intermediate/study_cohorts_20250902/bipolar_cohort_20250902.csv'
 
 ptsd_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -787,7 +787,7 @@ ptsd_cohort:
 
 
 mh_general_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -883,7 +883,7 @@ mh_general_cohort:
   cohort_save_path: 'data/02_intermediate/study_cohorts_20250902/mh_general_cohort_20250902.csv'
 
 osa_vs_mh_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'
@@ -989,7 +989,7 @@ osa_vs_mh_cohort:
 
 
 cvd_vs_control_cohort:
-  run: False
+  run: True
   person_df: 'data/01_raw/person_genomics_df_20250513.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
   drug_list: 'conf/drug_list.yaml'

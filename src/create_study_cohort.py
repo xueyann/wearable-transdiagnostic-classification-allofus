@@ -130,7 +130,7 @@ def create_cohort(config):
     ############### Cohort creation ################
     ## 1. create sleep cohort (OSA and insomnia)
     # Keep only the relevant conditions
-    cdf_sleep_full = cdf.loc[cdf['description'].isin(config['sleep_conditions_list'])]
+    cdf_sleep_full = cdf.loc[cdf['description'].isin(config['relevant_conditions'])]
     # Remove parent phecode to only take the most specific diagnosis
     cdf_sleep_full = remove_parent_phecodes(cdf_sleep_full)
     # Create empty dataframe to concat everything
@@ -196,7 +196,10 @@ def create_cohort(config):
 
     print(cohort.groupby('subcohort').count())
 
-    cohort.to_csv(config['cohort_save_path'], index=False)
+    cohort_save_path = config['cohort_save_path']
+    if not os.path.exists(os.path.dirname(cohort_save_path)):
+        os.makedirs(os.path.dirname(cohort_save_path))
+    cohort.to_csv(cohort_save_path, index=False)
 
     return
 
