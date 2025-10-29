@@ -47,4 +47,4 @@ filtered_dfs:
     filter_file_pattern: 'sleep_data_sleep_cohort_'
     fetch: True
     sql: 'activity_df.txt'
-    save_name: '02_intermediate/activity_20251002/hr_df_20251002_{i}.csv'
+    save_name: '02_intermediate/activity_20251002/activity_df_20251002_{i}.csv'

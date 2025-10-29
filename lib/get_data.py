@@ -23,7 +23,7 @@ def persist_df(df, fname, bucket_dest = os.getenv('WORKSPACE_BUCKET'), subfolder
     # temporarily save df to same workspace as notebook
     df.to_csv(f"./{subfolder}/{fname}", index=False)
     # copy csv file to the bucket
-    args = ["gsutil", "cp", f"./{subfolder}/{fname}", f"{bucket_dest}/{subfolder}/"]
+    args = ["gsutil", "cp", f"./{subfolder}/{fname}", f"{bucket_dest}/{subfolder}/{fname}"]
     output = subprocess.run(args, capture_output=True)
     # print output from gsutil
     output.stderr
