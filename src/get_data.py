@@ -59,7 +59,7 @@ def main():
             for filter_file in filter_file_list:
                 # Get file chunk id
                 chunk_id = filter_file.split('_')[-1].split('.')[0]
-                if not int(chunk_id) in [11, 12]:
+                if not int(chunk_id) in [0, 1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 2, 20, 21, 22, 23, 24]:
                     print(f"{chunk_id = }")
                     # Get string of sleep dates
                     print(f"Reading {filter_file} for filtering...")
