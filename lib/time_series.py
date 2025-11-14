@@ -23,7 +23,7 @@ def robust_z_scores(values):
     robust_z = 0.6745 * (values - median) / mad
     return robust_z
 
-def get_label_df(sleep_streaks,
+def get_label_df(sleep_streaks = None,
                  conditions = ['diabetes', 'cvd', 'osa', 'mdd', 'anxiety', 'adhd', 'bipolar'],
                  path_pattern = 'data/02_intermediate/study_cohorts_20250902/{cond}_cohort_20250902.csv'):
     
@@ -47,8 +47,9 @@ def get_label_df(sleep_streaks,
     df = df.drop(columns=['subcohort_Control'])
     # Aggregate
     df = df.groupby('person_id', as_index=False).sum()
-    # Ensure all the person ids have sleep streaks
-    df = df.merge(sleep_streaks)
+    # Ensure all the person ids have sleep streaks (optional)
+    if sleep_streaks is not None:
+        df = df.merge(sleep_streaks)
 
     # cast all date columns
     subcohort_cols = [x for x in df.columns if x.startswith('subcohort_')]
@@ -58,7 +59,8 @@ def get_label_df(sleep_streaks,
         df[col] = pd.to_datetime(df[col], errors='ignore', format = '%Y-%m-%d')
 
     # Label whether the streak is after all diagnoses
-    df['streak_after'] = df['streak_start'] >= df[subcohort_cols].max(axis=1)
+    if sleep_streaks is not None:
+        df['streak_after'] = df['streak_start'] >= df[subcohort_cols].max(axis=1)
 
     return df
 

@@ -19,7 +19,11 @@ def fetch_query(query):
 def replace_person_ids_in_query(query, person_ids):
     return query.format_map(DefaultDict({'person_ids': ','.join([f"{x}" for x in person_ids])}))
 
-def persist_df(df, fname, bucket_dest = os.getenv('WORKSPACE_BUCKET'), subfolder='data'):
+def persist_df(df, fname, bucket_dest = os.getenv('WORKSPACE_BUCKET'), subfolder='data',
+                as_parquet = False):
+    if as_parquet is True:
+        assert fname.endswith('.parquet')
+        df.to_parquet(f"./{subfolder}/{fname}", index=False)
     # temporarily save df to same workspace as notebook
     df.to_csv(f"./{subfolder}/{fname}", index=False)
     # copy csv file to the bucket
