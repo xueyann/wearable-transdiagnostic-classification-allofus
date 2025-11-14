@@ -39,7 +39,7 @@ def get_label_df(sleep_streaks = None,
     df = df.reset_index(drop=True)
 
     # Set index date as value if patient belongs to that cohort
-    for col in df.columns:
+    for col in [x for x in df.columns if x != 'person_id']:
         df.loc[df[col]==True, col] = df['index_date']
         df.loc[df[col]==False, col] = ''
     df = df.drop(columns=['index_date'])
@@ -53,11 +53,12 @@ def get_label_df(sleep_streaks = None,
 
     # cast all date columns
     subcohort_cols = [x for x in df.columns if x.startswith('subcohort_')]
-    date_cols = subcohort_cols+['streak_start', 'streak_end']
+    if sleep_streaks is not None:
+        date_cols = subcohort_cols+['streak_start', 'streak_end']
+    date_cols = subcohort_cols
     for col in date_cols:
         df.loc[df[col]=='', col] = np.nan
-        df[col] = pd.to_datetime(df[col], errors='ignore', format = '%Y-%m-%d')
-
+        df[col] = pd.to_datetime(df[col], errors="coerce", format = '%Y-%m-%d')
     # Label whether the streak is after all diagnoses
     if sleep_streaks is not None:
         df['streak_after'] = df['streak_start'] >= df[subcohort_cols].max(axis=1)
