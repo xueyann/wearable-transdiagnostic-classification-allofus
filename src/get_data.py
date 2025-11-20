@@ -91,7 +91,8 @@ def main():
                     df = pd.concat(df)
                     savename = fetch_dict['save_name'].format(i=chunk_id)
                     print(f"Saving to {savename}...\n-*50")
-                    persist_df(df, savename, subfolder = base_dir_bucket)
+                    as_parquet = savename.endswith('.parquet')
+                    persist_df(df, savename, subfolder = base_dir_bucket, as_parquet = as_parquet)
 
 if __name__ == '__main__':
     main()
