@@ -6,6 +6,8 @@ from datetime import datetime
 import yaml
 import os
 import re
+import warnings
+warnings.filterwarnings("ignore")
 
 def label_parent_phecode(phecodes: List):
     """
@@ -86,27 +88,10 @@ def create_cohort(config):
     person_path = config['person_df']
     prescription_path = config['prescription_path']
 
-    ## Get drugs that affect sleep or heart rate
-    with open(config['drug_list']) as f:
-        drug_dict = yaml.safe_load(f)
-    # Get list of drugs that affect sleep and heart rate
-    excl_drugs = []
-    for d in config['excl_drug_classes']:
-        if d in drug_dict.keys():
-            excl_drugs.extend(drug_dict[d]) 
-        else:
-            print(f"{d} does not exist as a drug class in {config['drug_list']}")
-    # Get prescription df relevant to only sleep-affecting drugs
-    excl_drug_df = get_excl_drugs(prescription_path, excl_drugs)
-    print('Fetched drugs affecting sleep and heart rate')
-
-    ## TODO get OSA device df
-    device_df = pd.read_csv(config['osa_device_df'])
-
-    ## Read person df
+    ######## Read person df ########
     person_df = pd.read_csv(person_path)
 
-    ## Read condition df and merge with person with genomics cohort
+    ############### Read condition df and merge with person df ###############
     cdf = pd.DataFrame()
     i = 0
     cdf_part_path = cdf_path.format(i=i)
@@ -124,83 +109,70 @@ def create_cohort(config):
         cdf_part_path = cdf_path.format(i=i)
     print('Fetched condition df')
     
-    ############### Cohort creation ################ TODO change everything
+    ############### Cohort creation ################
     # Remove parent phecode to only take the most specific diagnosis
     cdf = remove_parent_phecodes(cdf)
     # map condition description into subcohorts
     cdf['subcohort'] = cdf['description'].map(config['condition_map'])
-    # separate out patients with a condition
-    cohort = cdf.loc[~cohort['subcohort'].isna(), ['person_id', 'subcohort', 'condition_start_date']].copy()
-    # TODO copy from make_transformer_dataset: make the value at each position the diagnosis date
 
+    ########## patients with a condition #############
+    cohort = cdf.loc[~cdf['subcohort'].isna(), ['person_id', 'subcohort', 'condition_start_date']].copy()
+    # For each condition, take the earliest date as index date
+    cohort = cohort.groupby(['person_id', 'subcohort'], as_index=False).min()
+    # Make the value at each position the diagnosis date
+    cohort = pd.get_dummies(cohort, columns = ['subcohort'])
+    subcohort_cols = [x for x in cohort.columns if x.startswith('subcohort_')]
+    for col in subcohort_cols:
+        cohort.loc[cohort[col]==True, col] = cohort['condition_start_date']
+        cohort.loc[cohort[col]==False, col] = ''
+    # aggregate
+    df = df.groupby('person_id', as_index=False).sum()
 
-    # Create empty dataframe to concat everything
-    cohort = pd.DataFrame()
-    for cond, subcohort in config['condition_map'].items():
-
-        # Further filter down to only include the subcohort
-        cdf_sleep = cdf_sleep_full.loc[cdf_sleep_full['description']==subcohort].copy()
-        if cdf_sleep.empty:
-            # print(f"Np patient with condition {subcohort}, skipping..")
-            # continue
-            raise Exception(f"There is no patient with diagnosis {subcohort}, please check the condition list and spelling")
-        # Get the index date for each person (earliest diagnosis)
-
-        index_df = cdf_sleep.groupby('person_id', as_index = False).apply(lambda x: x.min()['condition_start_date'])\
-                        .rename(columns={None: 'condition_start_date'})
-        
-        # Merge on person id to get primary diagnosis
-        sleep_cohort = index_df.merge(cdf_sleep, on=['person_id', 'condition_start_date'], how = 'inner')\
-                        .rename(columns={'condition_start_date': 'index_date', 
-                                        'phecode': 'primary_phecode', 
-                                        'description': 'primary_diag'})
-
-        # sleep_cohort = index_df.merge(cdf_sleep[['person_id', 'phecode', 'description']], 
-        #                               on='person_id', how = 'inner')\
-        #                                 .rename(columns={'condition_start_date': 'index_date', 
-        #                                                 'phecode': 'primary_phecode', 
-        #                                                 'description': 'primary_diag'})
-
-        sleep_cohort = sleep_cohort[['person_id', 'primary_diag', 'index_date']]
-        # Rename subcohort
-        sleep_cohort['subcohort'] = subcohort_rename
-        # TODO create comorbidities?
-        # TODO get the date where they get treated with a device/medication
-        cohort = pd.concat([cohort, sleep_cohort], axis=0)
-        print(f"Created sleep cohort {subcohort_rename}")
-    
-    # Combine patients with two or more primary diagnoses
-    cohort_index = cohort[['person_id', 'index_date']]\
-                        .groupby('person_id', as_index=False).min()
-    cohort = cohort[['person_id', 'subcohort']]\
-                    .groupby('person_id').apply(\
-                    lambda x: ' + '.join(sorted(x['subcohort'].unique().tolist())))\
-                    .reset_index().rename(columns={0: 'subcohort'})
-
-    cohort = cohort.merge(cohort_index, on = 'person_id')
-
-    ## 2. create healthy control cohort
-    ## apply exclusion criteria to filter patients based on condition
-    person_exclude_conditions = []
-    for col, vals in config['exclusion_conditions'].items():
-        person_exclude_conditions.extend(cdf.loc[cdf[col].isin(vals), 'person_id'].tolist())
-    
-    ## control cohort
-    control_cohort = person_df.loc[(~person_df['person_id'].isin(person_exclude_conditions)) \
-                                & (~person_df['person_id'].isin(sleep_drug_df['person_id']))]
+    ########### control cohort ###########
+    control_cohort = cdf.loc[cdf['subcohort'].isna()]
+    print(f"Control cohort size = {control_cohort['person_id'].nunique()} without any subcohort assignment")
+    # filter by additional exclusion conditions (diagnosis)
+    for col, vals in config['additional_exclusion_map'].items():
+        control_cohort = control_cohort.loc[~control_cohort[col].isin(vals)]
+    print(f"Control cohort size = {control_cohort['person_id'].nunique()} after filtering for additional exclusion conditions")
+    # only keep person id column and drop duplicates
     control_cohort = control_cohort[['person_id']].drop_duplicates()
-    control_cohort['subcohort'] = 'Control'
+    # filter by prescription and device 
+    ####### Get drugs that affect sleep or heart rate for exclusion in control cohort ########
+    with open(config['drug_list']) as f:
+        drug_dict = yaml.safe_load(f)
+    # Get list of drugs that affect sleep and heart rate
+    excl_drugs = []
+    for d in config['excl_drug_classes']:
+        if d in drug_dict.keys():
+            excl_drugs.extend(drug_dict[d]) 
+        else:
+            print(f"{d} does not exist as a drug class in {config['drug_list']}")
+    # Get prescription df relevant to only sleep-affecting drugs
+    excl_drug_df = get_excl_drugs(prescription_path, excl_drugs)
+    control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(excl_drug_df['person_id'])]
+    print(f"Control cohort size = {control_cohort.shape[0]} after filtering for sleep and HR medications")
+    ###### Get OSA device df for exclusion in control cohort ############
+    device_df = pd.read_csv(config['osa_device_df'])
+    control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(device_df['person_id'])]
+    print(f"Control cohort size = {control_cohort.shape[0]} after filtering for OSA device df")
+    
+    ###### Concatenate cohort with diagnosis with control cohort ######
+    cohort = pd.concat([cohort, control_cohort], axis = 0)
 
-    cohort = pd.concat([cohort, control_cohort], axis=0)
-
-    print("Created control cohort")
-
-    print(cohort.groupby('subcohort').count())
+    
 
     cohort_save_path = config['cohort_save_path']
     if not os.path.exists(os.path.dirname(cohort_save_path)):
         os.makedirs(os.path.dirname(cohort_save_path))
     cohort.to_csv(cohort_save_path, index=False)
+
+    # TODO put this forward before saving
+    assert cohort.shape[0] == cohort['person_id'].nunique()
+
+    for col in subcohort_cols:
+        print(f"Subcohort {col.replace('subcohort_', '')}: {cohort.loc[cohort[col]!=''].shape[0]}")
+    print(f"Control cohort: {cohort.loc[(cohort[subcohort_cols]=='').all()].shape[0]}")
 
     return
 
