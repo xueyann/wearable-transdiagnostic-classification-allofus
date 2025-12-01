@@ -17,11 +17,6 @@ def label_parent_phecode(phecodes: List):
         is_parent[i] = any([j.startswith(i) and j!=i for j in phecodes]) 
     return is_parent
 
-# # Test the helper function
-# phecodes = ['327.32', '327.3', '327']
-# is_parent = label_parent_phecode(phecodes)
-# is_parent
-
 def to_float_or_int(num):
     """
     Return int if number if an integer otherwise float
@@ -43,9 +38,9 @@ def remove_parent_phecodes(df):
     df = df.loc[df['is_parent']!=True].drop(columns=['is_parent', 'phecode_float'])
     return df
 
-def get_sleep_drugs(fpath_drug, sleep_drugs_list, save_path = None):
+def get_excl_drugs(fpath_drug, sleep_drugs_list, save_path = None):
     """
-    Function to get drugs that affect sleep 
+    Function to get drugs to be excluded
     Also includes some engineering because the source value
     of the drug names also include dosage, etc
     """
@@ -90,21 +85,23 @@ def create_cohort(config):
     cdf_path = config['condition_df']
     person_path = config['person_df']
     prescription_path = config['prescription_path']
-    sleep_drugs_save_path = config['sleep_drugs_save_path']
 
-    ## Get drugs that affect sleep
+    ## Get drugs that affect sleep or heart rate
     with open(config['drug_list']) as f:
         drug_dict = yaml.safe_load(f)
-    # Get list of drugs that affect sleeps
-    sleep_drugs = []
-    for d in config['sleep_affecting_drug_classes']:
+    # Get list of drugs that affect sleep and heart rate
+    excl_drugs = []
+    for d in config['excl_drug_classes']:
         if d in drug_dict.keys():
-            sleep_drugs.extend(drug_dict[d]) 
+            excl_drugs.extend(drug_dict[d]) 
         else:
             print(f"{d} does not exist as a drug class in {config['drug_list']}")
     # Get prescription df relevant to only sleep-affecting drugs
-    sleep_drug_df = get_sleep_drugs(prescription_path, sleep_drugs, sleep_drugs_save_path)
-    print('Fetched sleep drug df')
+    excl_drug_df = get_excl_drugs(prescription_path, excl_drugs)
+    print('Fetched drugs affecting sleep and heart rate')
+
+    ## TODO get OSA device df
+    device_df = pd.read_csv(config['osa_device_df'])
 
     ## Read person df
     person_df = pd.read_csv(person_path)
@@ -127,16 +124,20 @@ def create_cohort(config):
         cdf_part_path = cdf_path.format(i=i)
     print('Fetched condition df')
     
-    ############### Cohort creation ################
-    ## 1. create sleep cohort (OSA and insomnia)
-    # Keep only the relevant conditions
-    cdf_sleep_full = cdf.loc[cdf['description'].isin(config['relevant_conditions'])]
+    ############### Cohort creation ################ TODO change everything
     # Remove parent phecode to only take the most specific diagnosis
-    cdf_sleep_full = remove_parent_phecodes(cdf_sleep_full)
+    cdf = remove_parent_phecodes(cdf)
+    # map condition description into subcohorts
+    cdf['subcohort'] = cdf['description'].map(config['condition_map'])
+    # separate out patients with a condition
+    cohort = cdf.loc[~cohort['subcohort'].isna(), ['person_id', 'subcohort', 'condition_start_date']].copy()
+    # TODO copy from make_transformer_dataset: make the value at each position the diagnosis date
+
+
     # Create empty dataframe to concat everything
     cohort = pd.DataFrame()
-    for subcohort, subcohort_rename in config['subcohorts'].items():
-        print(subcohort)
+    for cond, subcohort in config['condition_map'].items():
+
         # Further filter down to only include the subcohort
         cdf_sleep = cdf_sleep_full.loc[cdf_sleep_full['description']==subcohort].copy()
         if cdf_sleep.empty:
