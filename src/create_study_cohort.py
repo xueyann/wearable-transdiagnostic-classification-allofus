@@ -1,3 +1,5 @@
+import sys
+sys.path.append('./')
 import pandas as pd
 from typing import List
 import numpy as np
@@ -6,6 +8,7 @@ from datetime import datetime
 import yaml
 import os
 import re
+from lib.helpers import find_strict_streaks, filter_sleep_feat_by_streak
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -51,7 +54,7 @@ def get_excl_drugs(fpath_drug, sleep_drugs_list, save_path = None):
     sleep_drugs = pd.DataFrame()
     fpath = fpath_drug.format(i=i)
     while os.path.exists(fpath):
-        print(f"Getting data from {fpath}")
+        # print(f"Getting data from {fpath}")
         sleep_drugs_part = pd.read_csv(fpath)
         # Filter down on sleep drug list
         sleep_drugs_part = sleep_drugs_part[['person_id', 
@@ -77,6 +80,44 @@ def get_excl_drugs(fpath_drug, sleep_drugs_list, save_path = None):
         sleep_drugs.to_csv(save_path, index=False)
     
     return sleep_drugs
+
+def get_static_features(sleep_data_collection_date, # Dataframe
+                        person_df,
+                        person_features,
+                        physical_measurement_df,
+                        physical_measurement_features,
+                        cohort):
+
+    ######### Demographic features #########
+    # Compute age using sleep data collection date as a reference
+    person_df = person_df.merge(sleep_data_collection_date)
+    person_df['age'] = ((pd.to_datetime(person_df['streak_start']) - \
+                         pd.to_datetime(person_df['date_of_birth'].str[0:10])).dt.days/365).astype(int)
+
+    # Process the categorical variables so that they are numeric 
+    # Race
+    person_df.loc[person_df['race']=='White', 'race_white'] = 1
+    person_df['race_white'] = person_df['race_white'].fillna(0)
+    # Sex at birth
+    person_df.loc[person_df['sex_at_birth']=='Male', 'sex_male'] = 1
+    person_df['sex_male'] = person_df['sex_male'].fillna(0)
+
+    person_df = person_df[['person_id'] + person_features]
+    
+    ######### Physical measurement features #########
+    # Select one closest to sleep collection date
+    physical_measurement_df = physical_measurement_df.merge(sleep_data_collection_date)
+    physical_measurement_df['diff'] = (pd.to_datetime(physical_measurement_df['streak_start']) - \
+                                        pd.to_datetime(physical_measurement_df['measurement_date'])).dt.days
+    physical_measurement_df = physical_measurement_df.merge(
+                                physical_measurement_df[['person_id', 'diff']].groupby('person_id', as_index=False).min(),
+                                on = ['person_id', 'diff'])
+    physical_measurement_df = physical_measurement_df[['person_id'] + physical_measurement_features]
+
+    # Join everything together
+    cohort = cohort.merge(person_df).merge(physical_measurement_df, how = 'left')
+
+    return cohort
 
 def create_cohort(config):
     """
@@ -112,6 +153,8 @@ def create_cohort(config):
     ############### Cohort creation ################
     # Remove parent phecode to only take the most specific diagnosis
     cdf = remove_parent_phecodes(cdf)
+    print('Removed parent phecodes')
+    # cdf.to_csv('data/02_intermediate/study_cohorts_20251201/condition_df.csv', index=False)
     # map condition description into subcohorts
     cdf['subcohort'] = cdf['description'].map(config['condition_map'])
 
@@ -123,13 +166,15 @@ def create_cohort(config):
     cohort = pd.get_dummies(cohort, columns = ['subcohort'])
     subcohort_cols = [x for x in cohort.columns if x.startswith('subcohort_')]
     for col in subcohort_cols:
-        cohort.loc[cohort[col]==True, col] = cohort['condition_start_date']
+        cohort.loc[cohort[col]==True, col] = cohort['condition_start_date'].astype(str)
         cohort.loc[cohort[col]==False, col] = ''
+    cohort = cohort.drop(columns = ['condition_start_date'])
+    print(cohort.head(5))
     # aggregate
-    df = df.groupby('person_id', as_index=False).sum()
+    cohort = cohort.groupby('person_id', as_index=False).sum()
 
     ########### control cohort ###########
-    control_cohort = cdf.loc[cdf['subcohort'].isna()]
+    control_cohort = cdf.loc[~cdf['person_id'].isin(cohort['person_id'])]
     print(f"Control cohort size = {control_cohort['person_id'].nunique()} without any subcohort assignment")
     # filter by additional exclusion conditions (diagnosis)
     for col, vals in config['additional_exclusion_map'].items():
@@ -137,7 +182,10 @@ def create_cohort(config):
     print(f"Control cohort size = {control_cohort['person_id'].nunique()} after filtering for additional exclusion conditions")
     # only keep person id column and drop duplicates
     control_cohort = control_cohort[['person_id']].drop_duplicates()
-    # filter by prescription and device 
+
+
+
+    ## TODO filter by prescription and device 
     ####### Get drugs that affect sleep or heart rate for exclusion in control cohort ########
     with open(config['drug_list']) as f:
         drug_dict = yaml.safe_load(f)
@@ -149,32 +197,59 @@ def create_cohort(config):
         else:
             print(f"{d} does not exist as a drug class in {config['drug_list']}")
     # Get prescription df relevant to only sleep-affecting drugs
-    excl_drug_df = get_excl_drugs(prescription_path, excl_drugs)
-    control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(excl_drug_df['person_id'])]
-    print(f"Control cohort size = {control_cohort.shape[0]} after filtering for sleep and HR medications")
-    ###### Get OSA device df for exclusion in control cohort ############
-    device_df = pd.read_csv(config['osa_device_df'])
-    control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(device_df['person_id'])]
-    print(f"Control cohort size = {control_cohort.shape[0]} after filtering for OSA device df")
+    excl_drug_df = get_excl_drugs(prescription_path, excl_drugs, save_path = config['excl_drug_savepath'])
+
+    # TODO refine filtering criteria
+
+    # control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(excl_drug_df['person_id'])]
+    # print(f"Control cohort size = {control_cohort.shape[0]} after filtering for sleep and HR medications")
+    # ###### Get OSA device df for exclusion in control cohort ############
+    # device_df = pd.read_csv(config['osa_device_df'])
+    # control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(device_df['person_id'])]
+    # print(f"Control cohort size = {control_cohort.shape[0]} after filtering for OSA device df")
     
     ###### Concatenate cohort with diagnosis with control cohort ######
     cohort = pd.concat([cohort, control_cohort], axis = 0)
+    # Get the earliest diagnosis date as index date for cohort with diagnosis
+    for col in subcohort_cols:
+        cohort.loc[cohort[col]=='', col] = np.nan
+        cohort[col] = pd.to_datetime(cohort[col], format = '%Y-%m-%d', errors = 'coerce')
+    cohort['index_date'] = cohort[subcohort_cols].min(axis=0)
 
-    
+
+    # make sure only one line per person
+    assert cohort.shape[0] == cohort['person_id'].nunique()
+
+    # print cohort sizess
+    for col in subcohort_cols:
+        print(f"Subcohort {col.replace('subcohort_', '')}: {cohort.loc[cohort[col].notna()].shape[0]}")
+    print(f"Control cohort: {cohort.loc[(cohort[subcohort_cols].isna()).all(axis=1)].shape[0]}")
 
     cohort_save_path = config['cohort_save_path']
     if not os.path.exists(os.path.dirname(cohort_save_path)):
         os.makedirs(os.path.dirname(cohort_save_path))
     cohort.to_csv(cohort_save_path, index=False)
 
-    # TODO put this forward before saving
-    assert cohort.shape[0] == cohort['person_id'].nunique()
-
-    for col in subcohort_cols:
-        print(f"Subcohort {col.replace('subcohort_', '')}: {cohort.loc[cohort[col]!=''].shape[0]}")
-    print(f"Control cohort: {cohort.loc[(cohort[subcohort_cols]=='').all()].shape[0]}")
-
     return
+
+def process_fitbit_summary(fpath, min_streak_length = 21):
+    # read fitbit summary data and formatting
+    df = pd.read_csv(fpath)
+    df['date'] = pd.to_datetime(df['date'], errors = 'coerce')
+    df.loc[df['is_main_sleep']=='false', 'is_main_sleep'] = False
+    df.loc[df['is_main_sleep']=='true', 'is_main_sleep'] = True
+
+    # Label non main sleep as nap
+    df = df.loc[df['is_main_sleep']==True].merge(
+                df.loc[df['is_main_sleep']==False, ['person_id', 'date', 'minute_in_bed']]\
+                    .rename(columns = {'minute_in_bed': 'nap_min'}),
+                how = 'left')
+    
+    # Find streaks and filter sleep by streaks
+    streaks = find_strict_streaks(df, date_col = 'date', min_length = min_streak_length)
+    df = filter_sleep_feat_by_streak(df, streaks, date_col = 'date')
+
+    return df
 
 def main():
 
@@ -186,6 +261,9 @@ def main():
         if cohort_conf['run']:
             print(f"Creating {cohort}\n......")
             create_cohort(cohort_conf)
+            # get fitbit summary data and process it
+            fitbit_summary = process_fitbit_summary(cohort_conf['fitbit_summary_data'],
+                                    min_streak_length = cohort_conf['min_streak_length'])
 
     
     return
