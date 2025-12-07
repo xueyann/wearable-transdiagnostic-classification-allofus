@@ -153,6 +153,7 @@ def filter_streak_by_age(streaks, person_df):
     # date after which the person turns 18
     streaks['cutoff'] = streaks['date_of_birth'] + pd.DateOffset(years= 18)
     # case where person turns 18 in the middle of a streak --> break this up TODO check code
+    streaks['break_streak'] = False
     streaks.loc[(streaks['streak_end'] >= streaks['cutoff']) & \
                 (streaks['streak_start'] < streaks['cutoff']), 'break_streak'] = True
     streaks.loc[streaks['break_streak'], 'streak_start'] = streaks.loc[streaks['break_streak'], 'cutoff']
@@ -163,43 +164,104 @@ def filter_streak_by_age(streaks, person_df):
 
     return streaks
 
+def get_excl_drug_minmax(config):
+    ####### Get drugs that affect sleep or heart rate for exclusion in control cohort ########
+    if config['excl_drug_df_available']:
+        excl_drug_df = pd.read_csv(config['excl_drug_savepath'])
+    else:
+        with open(config['drug_list']) as f:
+            drug_dict = yaml.safe_load(f)
+        # Get list of drugs that affect sleep and heart rate
+        excl_drugs = []
+        for d in config['excl_drug_classes']:
+            if d in drug_dict.keys():
+                excl_drugs.extend(drug_dict[d]) 
+            else:
+                print(f"{d} does not exist as a drug class in {config['drug_list']}")
+        # Get prescription df relevant to only sleep-affecting drugs
+        excl_drug_df = get_excl_drugs(config['prescription_path'], 
+                                      excl_drugs, 
+                                      save_path = config['excl_drug_savepath'])
+        # free up some memory
+        del excl_drugs
+
+    excl_drug_df['drug_exposure_start_datetime'] = pd.to_datetime(excl_drug_df['drug_exposure_start_datetime'].astype(str).str[0:10])
+    excl_drug_df['drug_exposure_end_datetime'] = pd.to_datetime(excl_drug_df['drug_exposure_end_datetime'].astype(str).str[0:10])
+    # take care of NA values for either exposure start or end datetime
+    excl_drug_df.loc[excl_drug_df['drug_exposure_end_datetime'].isna(), 'drug_exposure_end_datetime'] = \
+        excl_drug_df.loc[excl_drug_df['drug_exposure_end_datetime'].isna(), 'drug_exposure_start_datetime']
+    excl_drug_df.loc[excl_drug_df['drug_exposure_start_datetime'].isna(), 'drug_exposure_start_datetime'] = \
+        excl_drug_df.loc[excl_drug_df['drug_exposure_start_datetime'].isna(), 'drug_exposure_end_datetime']
+    
+    # take the min and max of drug exposure
+    excl_drug_minmax = excl_drug_df[['person_id', 'drug_exposure_start_datetime']]\
+                        .groupby('person_id', as_index=False).min().rename(
+                        columns = {'drug_exposure_start_datetime': 'drug_min'}).merge(
+                        excl_drug_df[['person_id', 'drug_exposure_end_datetime']]\
+                        .groupby('person_id', as_index=False).max().rename(
+                        columns = {'drug_exposure_end_datetime': 'drug_max'})
+    )
+    
+    return excl_drug_minmax
+
 def create_cohort(config):
     """
     Main function for creating cohort
     """
 
+    # create dictionary to record cohort attrition
+    attrition = {}
+
     ## fetch config
     cdf_path = config['condition_df']
     person_path = config['person_df']
-    prescription_path = config['prescription_path']
 
     ######## Read person df ########
     person_df = pd.read_csv(person_path)
+    # get the min and max of drugs that affect hr and sleep
+    excl_drug_minmax = get_excl_drug_minmax(config)
+    # get devices prescribed for OSA
+    device_df = pd.read_csv(config['osa_device_df'])
+
+    ######## get fitbit summary data and filter by streak length ########
+    streaks, fitbit_summary, attrition = process_fitbit_summary(config['fitbit_summary_data'],
+                                                     person_df,
+                                                     attrition,
+                                                     excl_drug_minmax,
+                                                     device_df,
+                                                    min_streak_length = config['min_streak_length'])
 
     ############### Read condition df and merge with person df ###############
-    cdf = pd.DataFrame()
-    i = 0
-    cdf_part_path = cdf_path.format(i=i)
-    while os.path.exists(cdf_part_path):
-        print(f"Getting data from {cdf_part_path}")
-        # Only keep those in cohort to keep the sizes manageable
-        cdf_part = pd.read_csv(cdf_part_path).merge(person_df[['person_id']])
-        # convert condition start time to datetime
-        cdf_part['condition_start_date'] = pd.to_datetime(cdf_part['condition_start_datetime'].str[0:10])
-        cdf_part = cdf_part[['person_id', 'group', 'description', 'condition_start_date', 
-                             'phecode', 'code', 'vocabulary_id']].drop_duplicates()
-        # concat
-        cdf = pd.concat([cdf, cdf_part])
-        # increment i and cdf path
-        i+=1
+    if config['parent_phecode_removed_avail']:
+        cdf = pd.read_parquet(config['parent_phecode_removed_df'])
+    else: # read raw condition df and remove parent phecode
+        cdf = pd.DataFrame()
+        i = 0
         cdf_part_path = cdf_path.format(i=i)
-    print('Fetched condition df')
+        while os.path.exists(cdf_part_path):
+            print(f"Getting data from {cdf_part_path}")
+            # Only keep those in cohort to keep the sizes manageable
+            cdf_part = pd.read_csv(cdf_part_path).merge(person_df[['person_id']])
+            # convert condition start time to datetime
+            cdf_part['condition_start_date'] = pd.to_datetime(cdf_part['condition_start_datetime'].str[0:10])
+            cdf_part = cdf_part[['person_id', 'group', 'description', 'condition_start_date', 
+                                'phecode', 'code', 'vocabulary_id']].drop_duplicates()
+            # concat
+            cdf = pd.concat([cdf, cdf_part])
+            # increment i and cdf path
+            i+=1
+            cdf_part_path = cdf_path.format(i=i)
+        print('Fetched condition df')
+    
+        # Remove parent phecode to only take the most specific diagnosis
+        cdf = remove_parent_phecodes(cdf)
+        print('Removed parent phecodes')
+        cdf.to_parquet(config['parent_phecode_removed_df'])
+
+    # filter cdf by sleep streaks
+    cdf = cdf.loc[cdf['person_id'].isin(streaks)]
     
     ############### Cohort creation ################
-    # Remove parent phecode to only take the most specific diagnosis
-    cdf = remove_parent_phecodes(cdf)
-    print('Removed parent phecodes')
-    # cdf.to_csv('data/02_intermediate/study_cohorts_20251201/condition_df.csv', index=False)
     # map condition description into subcohorts
     cdf['subcohort'] = cdf['description'].map(config['condition_map'])
 
@@ -231,35 +293,19 @@ def create_cohort(config):
     control_cohort = control_cohort[['person_id']].drop_duplicates()
     print(f"Control cohort size = {control_cohort['person_id'].nunique()} after filtering for additional exclusion using ICD codes")
 
-    ## TODO filter by prescription and device 
-    ####### Get drugs that affect sleep or heart rate for exclusion in control cohort ########
-    with open(config['drug_list']) as f:
-        drug_dict = yaml.safe_load(f)
-    # Get list of drugs that affect sleep and heart rate
-    excl_drugs = []
-    for d in config['excl_drug_classes']:
-        if d in drug_dict.keys():
-            excl_drugs.extend(drug_dict[d]) 
-        else:
-            print(f"{d} does not exist as a drug class in {config['drug_list']}")
-    # Get prescription df relevant to only sleep-affecting drugs
-    excl_drug_df = get_excl_drugs(prescription_path, excl_drugs, save_path = config['excl_drug_savepath'])
 
-    # TODO refine filtering criteria
-    control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(excl_drug_df['person_id'])]
-    print(f"Control cohort size = {control_cohort.shape[0]} after filtering for sleep and HR medications")
+
+    # # TODO refine filtering criteria
+    # control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(excl_drug_df['person_id'])]
+    # print(f"Control cohort size = {control_cohort.shape[0]} after filtering for sleep and HR medications")
     ###### Get OSA device df for exclusion in control cohort ############
     device_df = pd.read_csv(config['osa_device_df'])
     control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(device_df['person_id'])]
     print(f"Control cohort size = {control_cohort.shape[0]} after filtering for OSA device df")
 
-
-    # get fitbit summary data and filter by streak length
-    streaks, fitbit_summary = process_fitbit_summary(config['fitbit_summary_data'],
-                                                     person_df,
-                                                    min_streak_length = config['min_streak_length'])
-
-
+    
+    del cdf
+    del device_df
 
     ######## Get index date ##########
     # Get the earliest sleep data collection date as index date for control cohort
@@ -273,7 +319,7 @@ def create_cohort(config):
         cohort[col] = pd.to_datetime(cohort[col], format = '%Y-%m-%d', errors = 'coerce')
     cohort['index_date'] = cohort[subcohort_cols].min(axis=0)
 
-    ###### Concatenate cohort with diagnosis with control cohort ######
+    ###### Concatenate subcohorts with diagnosis with control cohort ######
     cohort = pd.concat([cohort, control_cohort], axis = 0)
     # select only people with sleep streaks
     cohort = cohort.loc[cohort['person_id'].isin(streaks['person_id'])]
@@ -322,7 +368,6 @@ def create_cohort(config):
 
     # TODO get additional sleep features, refer to make_transformer_dataset_fitbit_summary
 
-
     ######## Save cohort #######
     cohort_save_path = config['cohort_save_path']
     if not os.path.exists(os.path.dirname(cohort_save_path)):
@@ -331,39 +376,76 @@ def create_cohort(config):
 
     return
 
-def process_fitbit_summary(fpath, person_df, min_streak_length = 21, streak_save_path = None):
+def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_device_df,
+                           min_streak_length = 21, streak_save_path = None):
     # read fitbit summary data and formatting
     df = pd.read_parquet(fpath)
+    attrition['Having fitbit data'] = df['person_id'].nunique()
+    # filter for df in person df
+    df = df.loc[df['person_id'].isin(person_df['person_id'])]
+    attrition['fitbit_and_ehr'] = person_df['person_id'].nunique()
+    print(attrition)
+
+    # discard some columns that we are not going to use as features
+    df = df.drop(columns = ['calories_bmr', 'elevation', 'floors', 'minute_restless'])
+    print('read fitbit summary')
     df['date'] = pd.to_datetime(df['date'], errors = 'coerce')
     df.loc[df['is_main_sleep']=='false', 'is_main_sleep'] = False
     df.loc[df['is_main_sleep']=='true', 'is_main_sleep'] = True
+
+    print('converted main sleep false to nap')
 
     # Label non main sleep as nap
     df = df.loc[df['is_main_sleep']==True].merge(
                 df.loc[df['is_main_sleep']==False, ['person_id', 'date', 'minute_in_bed']]\
                     .rename(columns = {'minute_in_bed': 'nap_min'}),
                 how = 'left')
+    df = df.drop(columns = ['is_main_sleep'])
+
+    print('labelled condition df')
     
-    # fillna for nap min
+    # fillna for nap min and active minutes
     df['nap_min'] = df['nap_min'].fillna(0)
-    df = df.drop(columns = ['minute_restless', 'is_main_sleep'])
-    assert df.shape[0] == df[['person_id', 'date']].drop_duplicates().shape[0]
-    # discard some columns further
-    df = df.drop(columns = ['calories_bmr', 'elevation', 'floors'])
     df['very_active_minutes'] = df['very_active_minutes'].fillna(0)
     df = df.dropna()
+
+    # at this point we should have just one row per person
+    assert df.shape[0] == df[['person_id', 'date']].drop_duplicates().shape[0]
     
     # Find streaks and filter sleep by streaks
     streaks = find_strict_streaks(df, date_col = 'date', min_length = min_streak_length)
+
+    attrition['21 days of sleep streak'] = streaks['person_id'].nunique()
+    print(attrition)
+
     # Filter streaks when >= 18 years old by getting DOB from person df
     streaks = filter_streak_by_age(streaks, person_df)
+    # Filter streaks before prescription of any HR or sleep affecting medication
+    streaks = streaks.merge(excl_drug_minmax[['person_id', 'drug_min']], how = 'left')
+    streaks = streaks.loc[(streaks['streak_end'] <= streaks['drug_min']) |
+                          streaks['drug_min'].isna()]
+    streaks = streaks.drop(columns = ['drug_min'])
+    attrition['sleep streaks before prescriptions affecting HR or sleep'] = streaks['person_id'].nunique()
+
+    # filter streaks before prescription of OSA devices
+    osa_device_df['osa_device_date'] = pd.to_datetime(osa_device_df['osa_device_date'].astype(str)[0:10], errors='coerce')
+    streaks = streaks.merge(osa_device_df[['person_id', 'osa_device_date']], how = 'left')
+    print(streaks.dtypes)
+    streaks = streaks.loc[(streaks['streak_end'] <= streaks['osa_device_date']) |
+                          streaks['drug_min'].isna()]
+    streaks = streaks.drop(columns = ['osa_device_date'])
+    attrition['sleep streaks before prescriptions of OSA devices'] = streaks['person_id'].nunique()
+    
     # TODO determine which streak to use
     df = filter_sleep_feat_by_streak(df, streaks, date_col = 'date')
 
-    if not streak_save_path:
+    attrition['sleep data on or after 18 years old'] = df['person_id'].nunique()
+    print(attrition)
+
+    if streak_save_path:
         streaks.to_csv(streak_save_path, index=False)
 
-    return streaks, df
+    return streaks, df, attrition
 
 
 def get_features(cohort):
