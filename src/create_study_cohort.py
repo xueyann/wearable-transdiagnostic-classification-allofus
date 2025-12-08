@@ -81,6 +81,37 @@ def get_excl_drugs(fpath_drug, sleep_drugs_list, save_path = None):
     
     return sleep_drugs
 
+def get_time_series_sleep_features(pattern,
+                                    streaks, # dataframe that contains streak information
+                                    sleep_onset_center = 22, # For centering sleep onset wrt a reference time, default = 10pm,
+                                    features = None
+                                    ):
+
+    # Filter sleep df by streaks
+    i = 0
+    filtered_sleep_feat = []
+    while os.path.exists(pattern.format(i=i)):
+        # read the sleep feature data
+        sleep_feat = pd.read_csv(pattern.format(i=i)).dropna()
+        if features is not None:
+            sleep_feat = sleep_feat[['person_id', 'sleep_date'] + features]
+        sleep_feat = sleep_feat.dropna()
+        # Adjustment on sleep onset time
+        sleep_feat['sleep_onset_adjusted'] = sleep_feat['sleep_onset'].astype(float) - sleep_onset_center
+        sleep_feat.loc[sleep_feat['sleep_onset_adjusted'] > 12, 'sleep_onset_adjusted'] = 24 - sleep_feat.loc[sleep_feat['sleep_onset_adjusted'] > 12, 'sleep_onset_adjusted'].astype(float)
+        sleep_feat.loc[sleep_feat['sleep_onset_adjusted'] < -12, 'sleep_onset_adjusted'] = sleep_feat.loc[sleep_feat['sleep_onset_adjusted'] < -12, 'sleep_onset_adjusted'].astype(float) + 24
+        # Drop unnecessary columns
+        sleep_feat = sleep_feat.drop(columns = ['sleepless', 'sleep_onset'], errors = 'ignore')
+        
+        # Filter by streaks
+        filtered_sleep_feat.append(filter_sleep_feat_by_streak_memory_efficient(sleep_feat, streaks))
+        i += 1
+    
+    sleep_data = pd.concat(filtered_sleep_feat, axis=0).rename(columns = {'sleep_date': 'date'})
+
+    return sleep_data
+
+
 def get_static_features(cohort, # Dataframe, should have index date
                         person_df,
                         person_features,
@@ -334,13 +365,15 @@ def create_cohort(config):
     # # select only people with sleep streaks
     # cohort = cohort.loc[cohort['person_id'].isin(streaks['person_id'])]
     # print(f"Cohort size = {cohort.shape[0]} after filtering for 21 days of sleep streaks")
+    attrition['either a diagnosis assigned or in control cohort'] = cohort.shape[0]
 
     #### NOTE optional Get the streak closest to index date but after index date
     streaks = streaks.merge(cohort[['person_id', 'index_date']])
     streaks = streaks.loc[streaks['streak_end'] >= streaks['index_date']]
+    streaks = streaks
     # select only people with sleep streaks after index date
     cohort = cohort.loc[cohort['person_id'].isin(streaks['person_id'])]
-    cohort['sleep streak overlap with formal diagnosis'] = cohort.shape[0]
+    attrition['sleep streak overlap with formal diagnosis'] = cohort.shape[0]
     print(attrition)
 
     # make sure only one line per person
@@ -353,37 +386,74 @@ def create_cohort(config):
 
     ####### Get static features #######
     cohort = get_static_features(cohort,
-                                        person_df,
-                                        config['person_features'],
-                                        pd.read_csv(config['physical_measurement_df']),
-                                        config['physical_measurement_features'])
+                            person_df,
+                            config['person_features'],
+                            pd.read_csv(config['physical_measurement_df']),
+                            config['physical_measurement_features'])
+    
+    ######## Save cohort together with static features #######
+    cohort_save_path = config['cohort_save_path']
+    if not os.path.exists(os.path.dirname(cohort_save_path)):
+        os.makedirs(os.path.dirname(cohort_save_path))
+    cohort.to_csv(cohort_save_path, index=False)
+    # save attrition
+    pd.Series(attrition).to_csv(config['attrition_savepath'], index=False)
+
+    return cohort, streaks, fitbit_summary
+
+
+def get_time_series_features(cohort, streaks, fitbit_summary, config):
+    """
+    Get time series features, multiple rows per person to preserve the temporal element
+    
+    :param cohort: Description
+    :param streaks: Description
+    :param fitbit_summary: Description
+    :param config: Description
+    """
+
+    # select only person ids inside the cohort
+    streaks = streaks.loc[streaks['person_id'].isin(cohort['person_id'])]
     
     ####### Get time series features #######
     # Find earliest streak and filter fitbit summary data by streak
     streaks = streaks.merge(streaks[['person_id', 'streak_start']].groupby('person_id', as_index=False).min(),
                             on = ['person_id', 'streak_start'])
     fitbit_summary = filter_sleep_feat_by_streak_memory_efficient(fitbit_summary, streaks, date_col = 'date')
-    # TODO delete, just to inspect the fitbit summary data
-    fitbit_summary.to_csv('data/02_intermediate/study_cohorts_20251201/fitbit_summary_filtered.csv')
-    # compute summary statistics for the fitbit summary data and merge with cohort
+
+    # include just time series features
     time_series_features = config['time_series_features']
+    fitbit_summary = fitbit_summary[['person_id', 'date'] + time_series_features]
+
+    ####### Get additional sleep features #######
+    if config['get_additional_sleep_feat']:
+
+        sleep_df = get_time_series_sleep_features(config['additional_sleep_features_path_pattern'],
+                                                streaks, # dataframe that contains streak information
+                                                # For centering sleep onset wrt a reference time, default = 10pm,
+                                                sleep_onset_center = config['sleep_onset_center'], 
+                                                features = ['sleep_onset'] + \
+                                                    [x for x in config['additional_sleep_features'] if x != 'sleep_onset_adjusted'])
+        # sleep_df = pd.read_csv(config['additional_sleep_features_path'])
+        # sleep_df = sleep_df[['person_id', 'sleep_date'] + config['additional_sleep_features']].rename(
+        #     columns = {'sleep_date': 'date'}
+        # )
+        fitbit_summary = fitbit_summary.merge(sleep_df, on = ['person_id', 'date'], how = 'left')
+        # check for any na values
+        fitbit_summary.loc[fitbit_summary.isna().any(axis=1)].to_csv('data/02_intermediate/study_cohorts_20251201/additional_sleep_feat_na.csv')
+
+    # save time series features
+    fitbit_summary.to_csv(config['time_series_features_savepath'], index=False)
+
+    ######### compute summary stats and save #########
     fitbit_summary = fitbit_summary[['person_id'] + time_series_features].groupby('person_id').agg(
                             {c: ['mean', 'std'] for c in time_series_features}
                         )
     # flatten multi-index column
     fitbit_summary.columns = [f"{col}_{stat}" for col, stat in fitbit_summary.columns]
     fitbit_summary = fitbit_summary.reset_index()
-
-    cohort = cohort.merge(fitbit_summary, on = 'person_id')
-
-    # TODO get additional sleep features, refer to make_transformer_dataset_fitbit_summary
-
-    ######## Save cohort #######
-    cohort_save_path = config['cohort_save_path']
-    if not os.path.exists(os.path.dirname(cohort_save_path)):
-        os.makedirs(os.path.dirname(cohort_save_path))
-    cohort.to_csv(cohort_save_path, index=False)
-
+    fitbit_summary.to_csv(config['time_series_features_sumstats_savepath'], index=False)
+    
     return
 
 def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_device_df,
@@ -472,10 +542,11 @@ def main():
     with open('conf/create_study_cohort.yaml') as f:
          config = yaml.safe_load(f)
 
-    for cohort, cohort_conf in config.items():
+    for cohort_name, cohort_conf in config.items():
         if cohort_conf['run']:
-            print(f"Creating {cohort}\n......")
-            create_cohort(cohort_conf)
+            print(f"Creating {cohort_name}\n......")
+            cohort, streaks, fitbit_summary = create_cohort(cohort_conf)
+            get_time_series_features(cohort, streaks, fitbit_summary, cohort_conf)
     
     return
 

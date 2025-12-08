@@ -22,8 +22,8 @@ total_cohort:
                         'thyroid_hormones',
                         'antithyroid_agents']
   osa_device_df: 'data/02_intermediate/osa_device_df_20250619.csv'
-  filter_by_medication: True
-  filter_by_osa_device: True
+  filter_by_medication: False
+  filter_by_osa_device: False
   condition_map: {
                   'Diabetes or abnormal glucose tolerance complicating pregnancy': 'Diabetes',
                   # 'Secondary diabetes mellitus': 'Diabetes',
@@ -90,7 +90,7 @@ total_cohort:
   excl_drug_df_available: True
   excl_drug_savepath: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
   fitbit_summary_data: 'data/02_intermediate/fitbit_data_summary/'
-  min_streak_length: 14
+  min_streak_length: 21
   cohort_save_path: 'data/02_intermediate/study_cohorts_20251201/study_cohort_20251201.csv'
   streak_save_path: 'data/02_intermediate/study_cohorts_20251201/streaks_20251201.csv'
 
@@ -114,3 +114,16 @@ total_cohort:
                         'steps', 'very_active_minutes', 'minute_in_bed',
                         'minute_asleep', 'minute_after_wakeup', 'minute_awake', 'minute_deep',
                         'minute_light', 'minute_rem', 'minute_wake', 'nap_min']
+  get_additional_sleep_feat: False
+  additional_sleep_features_path_pattern: 'data/02_intermediate/sleep_features_v2/sleep_feature_df_20250623_{i}.csv'
+  additional_sleep_features: ['sleep_efficiency_percent', 
+                                    'waso_min',
+                                    'num_awakenings', 
+                                    'fragmentation_index',
+                                    'rem_latency_min', 
+                                    'rem_fragmentation',
+                                    'sleep_onset_adjusted']
+  time_series_features_savepath: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features.csv'
+  time_series_features_sumstats_savepath: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features_sumstats.csv'
+  sleep_onset_center: 22
+  attrition_savepath: 'data/02_intermediate/study_cohorts_20251201/attrition.csv'
