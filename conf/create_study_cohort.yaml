@@ -22,6 +22,8 @@ total_cohort:
                         'thyroid_hormones',
                         'antithyroid_agents']
   osa_device_df: 'data/02_intermediate/osa_device_df_20250619.csv'
+  filter_by_medication: True
+  filter_by_osa_device: True
   condition_map: {
                   'Diabetes or abnormal glucose tolerance complicating pregnancy': 'Diabetes',
                   # 'Secondary diabetes mellitus': 'Diabetes',
@@ -36,7 +38,7 @@ total_cohort:
                   'Generalized anxiety disorder': 'Anxiety',
                   'Major depressive disorder': 'MDD',
                   'Bipolar': 'Bipolar',
-                  'Posttraumatic stress disorder': 'PTSD',
+                  # 'Posttraumatic stress disorder': 'PTSD',
                   'Coronary atherosclerosis': 'CVD',
                   'Congestive heart failure (CHF) NOS': 'CVD',
                   'Pulmonary embolism and infarction, acute': 'CVD',
@@ -88,7 +90,7 @@ total_cohort:
   excl_drug_df_available: True
   excl_drug_savepath: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
   fitbit_summary_data: 'data/02_intermediate/fitbit_data_summary/'
-  min_streak_length: 21
+  min_streak_length: 14
   cohort_save_path: 'data/02_intermediate/study_cohorts_20251201/study_cohort_20251201.csv'
   streak_save_path: 'data/02_intermediate/study_cohorts_20251201/streaks_20251201.csv'
 
