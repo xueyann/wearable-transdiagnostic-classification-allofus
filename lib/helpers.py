@@ -92,6 +92,26 @@ def find_strict_streaks_p(df, date_col = 'date', min_length = 21):
 
     return streaks
 
+def filter_sleep_feat_by_streak_memory_efficient(sleep_feat_df, streaks, date_col = 'sleep_date'):
+
+    sleep_feat_df[date_col] = pd.to_datetime(sleep_feat_df[date_col])
+    streaks['streak_start'] = pd.to_datetime(streaks['streak_start'])
+    streaks['streak_end'] = pd.to_datetime(streaks['streak_end'])
+
+    # expand streak df
+    streaks[date_col] = streaks.apply(lambda x: list(pd.date_range(x['streak_start'], x['streak_end'])), axis = 1)
+    streaks = streaks.explode(date_col)
+    streaks = streaks[['person_id', date_col]]
+
+    # filter sleep feature df
+    sleep_feat_df = sleep_feat_df.merge(streaks)
+
+    return sleep_feat_df
+
+
+
+
+
 
 def filter_sleep_feat_by_streak(sleep_feat_df, streaks, date_col = 'sleep_date'):
     """

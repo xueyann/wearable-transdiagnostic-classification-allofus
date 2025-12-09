@@ -1,0 +1,48 @@
+cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_20251201.csv'
+time_series_feature_df: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features.csv'
+time_series_sumstats: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features_sumstats.csv'
+static_features: ['age', 
+                  'sex_male', 
+                  'race_white',
+                  'BMI']
+time_series_features: ['fat_burn_min', 'cardio_min', 'peak_min',
+                        'out_of_range_min', 'activity_calories', 
+                        # 'calories_bmr', 
+                        'calories_out',
+                        # 'elevation', 
+                        'fairly_active_minutes', 
+                        # 'floors',
+                        'lightly_active_minutes', 'marginal_calories', 'sedentary_minutes',
+                        'steps', 'very_active_minutes', 'minute_in_bed',
+                        'minute_asleep', 'minute_after_wakeup', 'minute_awake', 'minute_deep',
+                        'minute_light', 'minute_rem', 'minute_wake', 'nap_min']
+results_folder: 'results/transformer_mdl_fitbit_summary_20251208/'
+transformer_mdl_setting: 
+  val_split: 0.15
+  test_split: 0.15
+  batch_size: 128
+  d_model: 64
+  n_layers: 2
+  n_heads: 2
+  d_ff: 256
+  max_len: 21
+  dropout_p: 0.2
+  ts_only_config:
+    max_epoch: 15
+    initial_lr: 5e-3
+    weight_decay: 0.1
+    cosine_anneal_lr_scheduler:
+      T_0: 5      # first restart after 10 epochs
+      T_mult: 2      # each next cycle is 2× longer
+      eta_min: 1e-6
+  with_static_config:
+    freeze_mdl_weights: True
+    max_epoch: 50
+    initial_lr: 5e-3
+    weight_decay: 0.1
+    cosine_anneal_lr_scheduler:
+      T_0: 5        # first restart after 10 epochs
+      T_mult: 2      # each next cycle is 2× longer
+      eta_min: 1e-6
+
+    

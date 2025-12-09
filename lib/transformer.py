@@ -1,18 +1,15 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 import itertools
 import torch
 import torch.nn as nn
-import importlib
-import src.rl_hier_contrastive
-importlib.reload(src.rl_hier_contrastive)
-from src.rl_hier_contrastive import TransformerEncoder
-from src.rl_hier_contrastive import assess_clf_perf as transformer_assess_clf_perf
 from torch.utils.data import Dataset, Subset, DataLoader, random_split, WeightedRandomSampler
 import torch.optim as optim
 import torch.nn.functional as F
+import seaborn as sns
 
 # Assessing model performance
 from sklearn.metrics import (
@@ -167,14 +164,48 @@ def compute_mean_and_std_static_batch(train_dataloader):
     return mean, std
 
 def normalise_features(data, data_static, mean_features, std_features, mean_static, std_static):
-    data = torch.tensor(data, dtype=torch.float32)
+    data = data.to(torch.float32)
     data = (data - mean_features[None, None, :]) / std_features[None, None, :]
 
-    data_static = torch.tensor(data_static, dtype=torch.float32)
+    data_static = data_static.to(torch.float32)
     data_static = (data_static - mean_static[None, :]) / std_static[None, :]
 
     return data, data_static
 
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=5000):
+        super().__init__()
+        pe = torch.zeros(max_len, d_model)
+        pos = torch.arange(0, max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(pos * div_term)
+        pe[:, 1::2] = torch.cos(pos * div_term)
+        self.pe = pe.unsqueeze(0)  # shape: [1, max_len, d_model]
+
+    def forward(self, x):
+        x = x + self.pe[:, :x.size(1)].to(x.device)
+        return x
+
+
+class TransformerEncoder(nn.Module):
+    def __init__(self, input_dim, d_model, n_layers, n_heads, d_ff, max_len):
+        super().__init__()
+        self.embedding = nn.Linear(input_dim, d_model)
+        self.pos_encoding = PositionalEncoding(d_model, max_len)
+        self.layers = nn.ModuleList([
+            nn.TransformerEncoderLayer(d_model, n_heads, d_ff, batch_first=True)
+            for _ in range(n_layers)
+        ])
+
+    def forward(self, x, mask=None):
+        """
+        Note that the mask refers to key padding mask instead of
+        attention mask and should have dimension seq_len, model_d"""
+        x = self.embedding(x)
+        x = self.pos_encoding(x)
+        for layer in self.layers:
+            x = layer(x, src_key_padding_mask = mask)
+        return x
 
 class TransformerClassifier(nn.Module):
     def __init__(self, input_dim, d_model=32, n_layers=3, n_heads=4, d_ff=128, max_len=21, dropout_p = 0):
@@ -308,6 +339,8 @@ def assess_clf_perf(y_pred, y_prob, y_true,
     ax0.set_title('Confusion Matrix')
     ax0.set_xlabel('Predicted Label')
     ax0.set_ylabel('True Label')
+
+    print('it is plotting graph')
 
     # ROC curve
     ax1 = fig.add_subplot(gs[1, 0])
