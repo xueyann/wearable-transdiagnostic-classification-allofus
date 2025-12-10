@@ -1,6 +1,7 @@
 cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_20251201.csv'
 time_series_feature_df: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features.csv'
 time_series_sumstats: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features_sumstats.csv'
+survey_df: 'data/02_intermediate/survey_df_20251210.csv'
 static_features: ['age', 
                   'sex_male', 
                   'race_white',
@@ -16,7 +17,9 @@ time_series_features: ['fat_burn_min', 'cardio_min', 'peak_min',
                         'steps', 'very_active_minutes', 'minute_in_bed',
                         'minute_asleep', 'minute_after_wakeup', 'minute_awake', 'minute_deep',
                         'minute_light', 'minute_rem', 'minute_wake', 'nap_min']
-results_folder: 'results/transformer_mdl_fitbit_summary_20251208/'
+results_folder: 'results/transformer_mdl_fitbit_summary_20251210/'
+xgb_run: True
+transformer_run: False
 transformer_mdl_setting: 
   val_split: 0.15
   test_split: 0.15

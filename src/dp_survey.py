@@ -12,7 +12,7 @@ def simplify_cat_ans(qn, ans):
 def process_survey_df(df, config):
 
     # filter df to only include relevant questions
-    qn_list = config['ordinal_encoding'].keys() + config['continuous_var']
+    qn_list = list(config['ordinal_encoding'].keys()) + config['continuous_var']
     df = df.loc[df['question'].isin(qn_list)]
 
     unknown_ans = df.loc[df['answer'].str.startswith('PMI:'), 'answer'].unique()
@@ -31,11 +31,6 @@ def process_survey_df(df, config):
 
     # pivot questions out
     df = df.pivot(columns = 'question', values = 'answer', index = 'person_id')
-
-
-
-
-
 
     # smoking other than cigarettes
     df['other_smoking'] = df[config['other_smoking']].all(axis=1)
@@ -78,9 +73,28 @@ def process_survey_df(df, config):
 
     df = df[['binge_drinking_freq', 'alcohol_drinking', 'past_year_drink_freq',
             'ever_smoker', 'daily_cig_count', 'smoke_years', 'other_smoking']]
+    df = df.reset_index()
 
     return df
 
+def handle_missing(df):
+    # create a missing flag and convert unknowns to 0 
+    df['missing_flag'] = False
+    for col in ['alcohol_drinking', 'ever_smoker', 'binge_drinking_freq', \
+                'binge_drinking_freq', 'daily_cig_count', 'past_year_drink_freq']:
+        df.loc[df[col]=='Unknown', 'missing_flag'] = True
+        df.loc[df[col]=='Unknown', col] = 0
+
+    # map everything to 0 and 1
+    df[['alcohol_drinking', 'ever_smoker', 'other_smoking', 'missing_flag']] = \
+        df[['alcohol_drinking', 'ever_smoker', 'other_smoking', 'missing_flag']]\
+        .map(lambda x: {'True': 1, 'False': 0, True: 1, False: 0}.get(x, x))
+
+    # fillna and convert everything to integer
+    df = df.fillna(0)
+    df = df.astype(int)
+
+    return df 
 
 def main():
     config = yaml.safe_load(open('conf/dp_survey.yaml'))
@@ -88,8 +102,9 @@ def main():
     i = 0
     while os.path.exists(config['survey_df_path_pattern'].format(i=i)):
         df = pd.read_csv(config['survey_df_path_pattern'].format(i=i))
-        processed_df.append(process_survey_df(df, config))
-
+        df = process_survey_df(df, config)
+        df = handle_missing(df)
+        processed_df.append(df)
         i += 1
     processed_df = pd.concat(processed_df)
     processed_df.to_csv(config['savepath'], index=False)

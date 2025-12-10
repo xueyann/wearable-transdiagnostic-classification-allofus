@@ -46,6 +46,9 @@ ordinal_encoding:
     'Smokeless Tobacco: Smokeless Tobacco Participant':
       'Yes': True
       'No': False
+    'Cigar Smoking: Cigar Smoke Participant':
+      'Yes': True
+      'No': False
 
     'Hookah Smoking: Current Hookah Frequency': 
       'Not At All': 0

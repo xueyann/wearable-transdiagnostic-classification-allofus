@@ -232,6 +232,7 @@ def main():
     time_series_feature_df = pd.read_csv(config['time_series_feature_df'])
     time_series_sumstats = pd.read_csv(config['time_series_sumstats']) # for XGBoost model
     time_series_features = config['time_series_features']
+    survey_df = pd.read_csv(config['survey_df']).astype(int)
     static_features = config['static_features']
     results_folder = config['results_folder']
     mdl_conf = config['transformer_mdl_setting']
@@ -260,96 +261,89 @@ def main():
     ##### XGBoost models #####
     ##################################
 
-    # get sumstats cohort for xgboost model
-    cohort_sumstats = cohort.merge(time_series_sumstats)
-    # cohort_sumstats.to_csv('data/temp/cohort_sumstats.csv', index=False)
+    if config['xgb_run']:
+        # get sumstats cohort for xgboost model
+        cohort_sumstats = cohort.merge(time_series_sumstats).merge(survey_df, how = 'left')
+        # cohort_sumstats.to_csv('data/temp/cohort_sumstats.csv', index=False)
 
-    for subcohort in subcohort_cols:
-        print(subcohort)
-        clf, X_test, y_test = create_mdl(cohort_sumstats, [x for x in cohort_sumstats.columns if x not in ['person_id', 'index_date'] + subcohort_cols],
-                                    label_col = subcohort)
-        assess_clf_perf_xgb(clf, X_test, y_test, 
-                            f'{results_folder_xgb}/{subcohort}/',
-                            [x for x in cohort_sumstats.columns if x not in ['person_id', 'label', 'index_date'] + subcohort_cols],
-                            feature_rename_map = None,
-                            labels = ['Negative (0)', 'Positive (1)'])
+        for subcohort in subcohort_cols:
+            print(subcohort)
+            clf, X_test, y_test = create_mdl(cohort_sumstats, [x for x in cohort_sumstats.columns if x not in ['person_id', 'index_date'] + subcohort_cols],
+                                        label_col = subcohort)
+            assess_clf_perf_xgb(clf, X_test, y_test, 
+                                f'{results_folder_xgb}/{subcohort}/',
+                                [x for x in cohort_sumstats.columns if x not in ['person_id', 'label', 'index_date'] + subcohort_cols],
+                                feature_rename_map = None,
+                                labels = ['Negative (0)', 'Positive (1)'])
 
     ##################################
     ##### Transformer models #####
     ##################################
 
-    # calculate the relative proportion of subcohort to use as positive weights
-    pos_weight = []
-    for col in subcohort_cols:
-        pos_weight.append(cohort.loc[cohort[col]==0].shape[0]/cohort.loc[cohort[col]==1].shape[0])
-    
+    if config['transformer_run']:
+        # calculate the relative proportion of subcohort to use as positive weights
+        pos_weight = []
+        for col in subcohort_cols:
+            pos_weight.append(cohort.loc[cohort[col]==0].shape[0]/cohort.loc[cohort[col]==1].shape[0])
+        
 
-    # get time series cohort for transformer model
-    cohort_ts = cohort.merge(time_series_feature_df)
+        # get time series cohort for transformer model
+        cohort_ts = cohort.merge(time_series_feature_df)
 
-    dataset = SleepDataset(cohort_ts, 
-                            features = time_series_features, 
-                            date_col = 'date', 
-                            label_col = subcohort_cols)
-    # Split into dataloader
-    g = torch.Generator().manual_seed(42)
-    train_dataloader, val_dataloader, test_dataloader = get_train_val_test_dataloader(dataset, 
-                                                                                      mdl_conf['val_split'], 
-                                                                                      mdl_conf['test_split'], 
-                                                                                      mdl_conf['batch_size'], 
-                                                                                      g)
-    # Compute mean and standard deviation across train set for normalisation later 
-    mean_features, std_features = compute_mean_and_std_batch(train_dataloader)
-    mean_static, std_static = compute_mean_and_std_static_batch(train_dataloader)
-
-
+        dataset = SleepDataset(cohort_ts, 
+                                features = time_series_features, 
+                                date_col = 'date', 
+                                label_col = subcohort_cols)
+        # Split into dataloader
+        g = torch.Generator().manual_seed(42)
+        train_dataloader, val_dataloader, test_dataloader = get_train_val_test_dataloader(dataset, 
+                                                                                        mdl_conf['val_split'], 
+                                                                                        mdl_conf['test_split'], 
+                                                                                        mdl_conf['batch_size'], 
+                                                                                        g)
+        # Compute mean and standard deviation across train set for normalisation later 
+        mean_features, std_features = compute_mean_and_std_batch(train_dataloader)
+        mean_static, std_static = compute_mean_and_std_static_batch(train_dataloader)
 
 
-    ##### time series feature only model #####
 
-    input_dim = next(iter(dataset))[0].shape[1]
-    model, clf = init_mdl(mdl_conf, input_dim, subcohort_cols)
-    model, clf = mdl_train_loop(model, clf,
-                                mdl_conf['ts_only_config'], subcohort_cols, 
-                                train_dataloader, val_dataloader, test_dataloader,
-                                mean_features, std_features,
-                                mean_static, std_static,
-                                pos_weight,
-                                results_folder_ts_only)
 
-    # Choose the best epoch using the validation loss
-    chosen_epoch = 10 # TODO change this to either manually input chosen epoch, or compute automatically
-    checkpoint_sleep_only = torch.load(f'{results_folder_ts_only}/checkpoint.pth', weights_only=False)
-    model.load_state_dict(checkpoint_sleep_only['model_state_dict'][chosen_epoch])
+        ##### time series feature only model #####
 
-    ##### add in static features #####
-    with_static_config = mdl_conf['with_static_config']
-    # whether to freeze model weights and put model into eval mode if specified
-    if with_static_config['freeze_mdl_weights']:
-        for param in model.parameters():
-            param.requires_grad = False
-        model.eval()
-    # reinitialise classifier head with the correct dimension
-    clf = ClassifierHead(d_model = mdl_conf['d_model']+len(static_features), out_dim = len(subcohort_cols))
-    # TODO get the model with the correct epoch
-    # training loop
-    model, clf = mdl_train_loop(model, clf,
-                                mdl_conf['with_static_config'], subcohort_cols, 
-                                train_dataloader, val_dataloader, test_dataloader,
-                                mean_features, std_features,
-                                mean_static, std_static,
-                                pos_weight,
-                                results_folder_with_static,
-                                with_static = True)
+        input_dim = next(iter(dataset))[0].shape[1]
+        model, clf = init_mdl(mdl_conf, input_dim, subcohort_cols)
+        model, clf = mdl_train_loop(model, clf,
+                                    mdl_conf['ts_only_config'], subcohort_cols, 
+                                    train_dataloader, val_dataloader, test_dataloader,
+                                    mean_features, std_features,
+                                    mean_static, std_static,
+                                    pos_weight,
+                                    results_folder_ts_only)
+
+        # Choose the best epoch using the validation loss
+        chosen_epoch = 10 # TODO change this to either manually input chosen epoch, or compute automatically
+        checkpoint_sleep_only = torch.load(f'{results_folder_ts_only}/checkpoint.pth', weights_only=False)
+        model.load_state_dict(checkpoint_sleep_only['model_state_dict'][chosen_epoch])
+
+        ##### add in static features #####
+        with_static_config = mdl_conf['with_static_config']
+        # whether to freeze model weights and put model into eval mode if specified
+        if with_static_config['freeze_mdl_weights']:
+            for param in model.parameters():
+                param.requires_grad = False
+            model.eval()
+        # reinitialise classifier head with the correct dimension
+        clf = ClassifierHead(d_model = mdl_conf['d_model']+len(static_features), out_dim = len(subcohort_cols))
+        # TODO get the model with the correct epoch
+        # training loop
+        model, clf = mdl_train_loop(model, clf,
+                                    mdl_conf['with_static_config'], subcohort_cols, 
+                                    train_dataloader, val_dataloader, test_dataloader,
+                                    mean_features, std_features,
+                                    mean_static, std_static,
+                                    pos_weight,
+                                    results_folder_with_static,
+                                    with_static = True)
 
 if __name__ == '__main__':
     main()
-
-    
-
-    
-
-
-
-
-    
