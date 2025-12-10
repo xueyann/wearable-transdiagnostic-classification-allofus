@@ -1,0 +1,98 @@
+import pandas as pd
+import yaml
+import os
+import numpy as np
+
+
+
+def simplify_cat_ans(qn, ans):
+    qn = qn.split(': ')[1]
+    return ans.replace(f'{qn}: ', '')
+
+def process_survey_df(df, config):
+
+    # filter df to only include relevant questions
+    qn_list = config['ordinal_encoding'].keys() + config['continuous_var']
+    df = df.loc[df['question'].isin(qn_list)]
+
+    unknown_ans = df.loc[df['answer'].str.startswith('PMI:'), 'answer'].unique()
+
+    # simplify the answers
+    df['answer'] = df.apply(lambda x: simplify_cat_ans(x['question'], x['answer']), axis=1)
+    # standardise unknown answers to unknown
+    df.loc[df['answer'].isin(unknown_ans), 'answer'] = 'Unknown'
+
+    # check no duplicate questions
+    assert df[['person_id', 'question']].drop_duplicates().shape[0] == df.shape[0]
+
+    # ordinal encoding for answers
+    for qn, ans_map in config['ordinal_encoding'].items():
+        df.loc[df['question'] == qn, 'answer'] = df.loc[df['question'] == qn, 'answer'].apply(lambda x: ans_map.get(x, x))
+
+    # pivot questions out
+    df = df.pivot(columns = 'question', values = 'answer', index = 'person_id')
+
+
+
+
+
+
+    # smoking other than cigarettes
+    df['other_smoking'] = df[config['other_smoking']].all(axis=1)
+    df = df.drop(columns = config['drop_col_other_smoking'])
+    
+    # rename columns for cleaner names
+    df = df.rename(columns = config['rename_map'])
+
+    ######## clean up alcohol #######
+    # people who answered yes to alcohol drinking but zero past year drink frequency - likely just social drinkers
+    # df.loc[(df['alcohol_drinking']==True) & (df['past_year_drink_freq']==0)]
+    # assign 0 past year drink frequency for those answered no to alcohol drinking
+    df.loc[df['alcohol_drinking']==False, 'past_year_drink_freq'] = 0
+    # assign binge drinking freq to 0 if past year drinking frequency is 0
+    df.loc[df['past_year_drink_freq']==0, 'binge_drinking_freq'] = 0
+    # assign binge drinking freq to 0 if past year drinking frequency is 0
+    df.loc[df['past_year_drink_freq']==0, 'binge_drinking_freq'] = 0
+
+
+    ######## clean up smoking ########
+    df.loc[df['smoke_quit_age']=='Unknown', 'smoke_quit_age'] = np.nan
+    df.loc[df['smoke_start_age']=='Unknown', 'smoke_start_age'] = np.nan
+    df.loc[df['smoke_years']=='Unknown', 'smoke_years'] = np.nan
+    # if current daily cig count is not 0, assume person didn't quit
+    df.loc[~df['current_daily_cig_count'].isin(['0', 0]), 'smoke_quit_age'] = np.nan
+
+
+    # check whether reported smoking years match smoke start and quit age
+    df_match_smoke_years = df.loc[(df['smoke_quit_attempt']==True), ['smoke_start_age', 'smoke_quit_age']].dropna().astype(int)
+    df_match_smoke_years['smoke_years_cal'] = df_match_smoke_years['smoke_quit_age'] - df_match_smoke_years['smoke_start_age'] 
+    # if smoke quit age is lower than smoke start age, assume person did not quit
+    person_no_quit = list(df_match_smoke_years.loc[df_match_smoke_years['smoke_years_cal']<0].index)
+    df.loc[person_no_quit, 'smoke_quit_age'] = np.nan
+    # smoke years
+    df = df.join(df_match_smoke_years[['smoke_years_cal']], how = 'left')
+    df.loc[df['smoke_years'].isna(), 'smoke_years'] = 0
+    df.loc[df['smoke_years_cal'].isna(), 'smoke_years_cal'] = 0
+    # choose the longer one for smoke years
+    df['smoke_years'] = df[['smoke_years', 'smoke_years_cal']].astype(int).max(axis=1)
+
+    df = df[['binge_drinking_freq', 'alcohol_drinking', 'past_year_drink_freq',
+            'ever_smoker', 'daily_cig_count', 'smoke_years', 'other_smoking']]
+
+    return df
+
+
+def main():
+    config = yaml.safe_load(open('conf/dp_survey.yaml'))
+    processed_df = []
+    i = 0
+    while os.path.exists(config['survey_df_path_pattern'].format(i=i)):
+        df = pd.read_csv(config['survey_df_path_pattern'].format(i=i))
+        processed_df.append(process_survey_df(df, config))
+
+        i += 1
+    processed_df = pd.concat(processed_df)
+    processed_df.to_csv(config['savepath'], index=False)
+
+if __name__ == '__main__':
+    main()
