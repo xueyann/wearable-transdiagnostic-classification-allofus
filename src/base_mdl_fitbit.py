@@ -234,6 +234,7 @@ def main():
     time_series_features = config['time_series_features']
     survey_df = pd.read_csv(config['survey_df']).astype(int)
     static_features = config['static_features']
+    survey_features = config['survey_features']
     results_folder = config['results_folder']
     mdl_conf = config['transformer_mdl_setting']
 
@@ -264,17 +265,26 @@ def main():
     if config['xgb_run']:
         # get sumstats cohort for xgboost model
         cohort_sumstats = cohort.merge(time_series_sumstats).merge(survey_df, how = 'left')
-        # cohort_sumstats.to_csv('data/temp/cohort_sumstats.csv', index=False)
+        cohort_sumstats.to_csv('data/temp/cohort_sumstats_clean_control.csv', index=False)
+
 
         for subcohort in subcohort_cols:
             print(subcohort)
-            clf, X_test, y_test = create_mdl(cohort_sumstats, [x for x in cohort_sumstats.columns if x not in ['person_id', 'index_date'] + subcohort_cols],
+            # feats = []
+            # for x in time_series_features:
+            #     for suffix in ['_mean', '_std']:
+            #         feats.append(f'{x}{suffix}')
+                
+            features = static_features + survey_features + [f'{x}{suffix}' for x in time_series_features for suffix in ['_mean', '_std']]
+            clf, X_test, y_test = create_mdl(cohort_sumstats, features,
                                         label_col = subcohort)
             assess_clf_perf_xgb(clf, X_test, y_test, 
                                 f'{results_folder_xgb}/{subcohort}/',
-                                [x for x in cohort_sumstats.columns if x not in ['person_id', 'label', 'index_date'] + subcohort_cols],
+                                features,
                                 feature_rename_map = None,
                                 labels = ['Negative (0)', 'Positive (1)'])
+            
+        sys.exit()
 
     ##################################
     ##### Transformer models #####
