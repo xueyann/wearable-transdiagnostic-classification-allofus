@@ -2,6 +2,7 @@ person_df: 'data/02_intermediate/person_df_20250805.csv' # for descriptives
 cohort: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
 survey_df: 'data/02_intermediate/survey_df_20251210.csv'
 time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
+drug_df: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
 output: 'results/base_mdl/descriptives_20251230.tex'
 
 subcohort_cols: ['subcohort_CVD', 
@@ -139,3 +140,20 @@ feature_rename_map: {
       'nap_min_mean': 'Nap minutes (mean)',
       'nap_min_std': 'Nap minutes (STD)',
 }
+
+
+drug_class_rename_map:
+  antiarrhythmics: 'Antiarrhythmics'
+  anticonvulsants: 'Anticonvulsants'
+  antithyroid_agents: 'Anti-thyroid agents'
+  anxiolytics: 'Anxiolytics'
+  atypical_antipsychotics: 'Atypical antipsychotics'
+  beta_blockers: 'Beta blockers'
+  hypnotics_and_sedatives: 'Hypnotics and sedatives'
+  non_dhp_calcium_channel_blockers: 'Non-DHP calcium channel blockers'
+  snri: 'Selective '
+  ssri: 'Selective serotonin reuptake inhibitors'
+  stimulants: 'Stimulants'
+  sympathomimetics: 'Sympathomimetics'
+  thyroid_hormones: 'Thyroid hormones'
+  typical_antipsychotics: 'Typical antipsychotics'
