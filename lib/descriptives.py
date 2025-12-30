@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 # Statistical tests
 from scipy.stats import (
     shapiro,
@@ -95,3 +96,69 @@ def compare_two_cohorts_side_by_side(df1, df2, features,
         results.to_csv(f"{save_folder}/comp.csv")
 
     return results
+
+import pandas as pd
+import numpy as np
+
+def generate_descriptives_split(df, 
+                                subcohort_name, 
+                                continuous_vars = ['age', 'waist_circum', 'hip_circum', 'BMI'], 
+                                categorical_vars = ['sex_at_birth', 'race', 'ethnicity'], 
+                                var_map = None):
+    """
+    Generate R-style descriptive statistics for continuous and categorical variables.
+
+    Returns two LaTeX-ready DataFrames:
+    1. continuous_df: One row per variable with mean (SD), median (IQR)
+    2. categorical_df: Multirow-compatible table of counts and percentages
+    """
+    ### CONTINUOUS ###
+    cont_rows = []
+    for var in continuous_vars:
+        series = df[var].dropna()
+        n = series.count()
+        missing = series.isna().sum()
+        mean = series.mean()
+        std = series.std()
+        median = series.median()
+        q1 = series.quantile(0.25)
+        q3 = series.quantile(0.75)
+        cont_rows.append({
+            'Variable': var,
+            'N (Missing %)': f"{n} ({missing:.2f})",
+            'Mean (SD)': f"{mean:.2f} ({std:.2f})",
+            'Median (IQR)': f"{median:.2f} ({q1:.2f} - {q3:.2f})"
+        })
+    continuous_df = pd.DataFrame(cont_rows)
+    # formatting
+    continuous_df = pd.DataFrame(continuous_df.set_index('Variable').stack(), 
+                                 columns = [subcohort_name])    
+    continuous_df = continuous_df.reset_index().rename(columns={'level_1': 'Measure'})
+    continuous_df.insert(2, 'Value', '')
+
+    ### CATEGORICAL ###
+    cat_rows = []
+    for var in categorical_vars:
+        counts = df[var].value_counts(dropna=False)
+        percents = df[var].value_counts(normalize=True, dropna=False) * 100
+        first = True
+        for level in counts.index:
+            label = str(level) if pd.notna(level) else 'Missing'
+            row = {
+                'Variable': var,
+                'Value': label,
+                subcohort_name: f"{counts[level]} ({percents[level]:.2f})"
+            }
+            cat_rows.append(row)
+            first = False
+    categorical_df = pd.DataFrame(cat_rows)
+    categorical_df.insert(1, 'Measure', 'N (%)')
+
+    # concatenate continuous and categorical
+    final_df = pd.concat([continuous_df, categorical_df])
+    # Map variable name if any
+    final_df['Variable'] = final_df['Variable'].apply(lambda x: var_map[x] if x in var_map.keys() else x)
+    final_df = final_df.set_index(['Variable', 'Measure', 'Value'])
+
+    return final_df
+
