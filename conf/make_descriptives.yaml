@@ -85,7 +85,7 @@ feature_rename_map: {
       'race': 'Race',
       'ethnicity': 'Ethnicity',
       'BMI': 'BMI',
-      'alcohol_drinking': 'Alcohol consumption (yes/no)',
+      'alcohol_drinking': 'Alcohol consumption',
       'past_year_drink_freq': 'Drinking frequency (past year)',
       'ever_smoker': 'Ever smoked',
       'daily_cig_count': 'Daily cigarette count',

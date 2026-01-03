@@ -1,14 +1,13 @@
 import sys
 sys.path.append('./')
 import os
+import re
 from pathlib import Path
 from lib.descriptives import generate_descriptives_split
 import pandas as pd
 import numpy as np
 import yaml
 from functools import reduce
-
-
 
 
 def main():
@@ -76,13 +75,38 @@ def main():
     # Make sure directory exists
     os.makedirs(os.path.dirname(Path(config['output'])), exist_ok = True)
 
-    desc_df.to_latex(config['output'], 
-                    index=True,
-                    escape = True, 
-                    float_format="%.2f",
-                    bold_rows = True,
-                    multicolumn_format = 'c',
-                    longtable = True)
+    latex = desc_df.to_latex(None,
+                        index=True,
+                        escape = True, 
+                        float_format="%.2f",
+                        bold_rows = True,
+                        multicolumn_format = 'c',
+                        longtable = True)
+    # some manual modification of the latex file
+    # specify the width of the first column so latex can wrap the text in cell
+    latex = re.sub(r'\\multirow\[t\]\{(\d+)\}\{\*\}',
+                    r'\\multirow[t]{\1}{2.1cm}',
+                    latex)
+    latex = latex.replace(r"\begin{longtable}{lllllllllll}", 
+                          r"""\begin{landscape}
+                                \footnotesize
+                                \begin{longtable}{>{\raggedright\arraybackslash}p{2.1cm}l>{\raggedright\arraybackslash}m{2.6cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}}""")
+    latex = latex.replace(r""" &  &  & Control & CVD & Diabetes & OSA & MDD & Anxiety & Bipolar & ADHD \\""", 
+                          r"""  &  &  & Control & CVD & Diabetes & OSA & MDD & Anxiety & Bipolar & ADHD \\
+                                \cmidrule(rl){4-4}
+                                \cmidrule(rl){5-5}
+                                \cmidrule(rl){6-6}
+                                \cmidrule(rl){7-7}
+                                \cmidrule(rl){8-8}
+                                \cmidrule(rl){9-9}
+                                \cmidrule(rl){10-10}
+                                \cmidrule(rl){11-11}""")
+    latex = latex.replace(r"""\end{longtable}""",
+                        r"""\end{longtable}
+                            \end{landscape}""")
+    with open(config['output'], 'w') as f:
+        f.write(latex)
+        f.write
 
 
     #### descriptive of medications ####
