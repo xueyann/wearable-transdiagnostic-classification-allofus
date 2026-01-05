@@ -1,7 +1,16 @@
-cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_20251201.csv'
-time_series_feature_df: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features.csv'
-time_series_sumstats: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features_sumstats.csv'
+cohort: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
+# cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_clean_control_20251211.csv'
+time_series_feature_df: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features.csv'
+time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
 survey_df: 'data/02_intermediate/survey_df_20251210.csv'
+# manually specify subcohort columns because order matters
+subcohort_cols: ['subcohort_CVD', 
+                  'subcohort_Diabetes', 
+                  'subcohort_OSA', 
+                  'subcohort_MDD', 
+                  'subcohort_Anxiety', 
+                  'subcohort_Bipolar', 
+                  'subcohort_ADHD']
 static_features: ['age', 
                   'sex_male', 
                   'race_white',
@@ -9,24 +18,51 @@ static_features: ['age',
 survey_features: ['binge_drinking_freq', 
                   'alcohol_drinking', 
                   'past_year_drink_freq',
-                  'ever_smoker', 
+                  'ever_smoker',
                   'daily_cig_count', 
                   'smoke_years', 
                   'smoke_start_age',
                   'other_smoking', 
                   'missing_flag']
-time_series_features: ['fat_burn_min', 'cardio_min', 'peak_min',
-                        'out_of_range_min', 'activity_calories', 
+time_series_features: ['fat_burn_min', 
+                        'cardio_min', 
+                        'peak_min',
+                        'out_of_range_min', 
+                        'activity_calories', 
                         # 'calories_bmr', 
                         'calories_out',
                         # 'elevation', 
                         'fairly_active_minutes', 
                         # 'floors',
-                        'lightly_active_minutes', 'marginal_calories', 'sedentary_minutes',
-                        'steps', 'very_active_minutes', 'minute_in_bed',
-                        'minute_asleep', 'minute_after_wakeup', 'minute_awake', 'minute_deep',
-                        'minute_light', 'minute_rem', 'minute_wake', 'nap_min']
-results_folder: 'results/transformer_mdl_fitbit_summary_20251210/'
+                        'lightly_active_minutes', 
+                        'marginal_calories', 
+                        'sedentary_minutes',
+                        'steps', 
+                        'very_active_minutes', 
+                        'minute_in_bed',
+                        'minute_asleep', 
+                        'sleep_efficiency',
+                        'minute_after_wakeup', 
+                        # 'minute_awake', 
+                        'minute_deep',
+                        'minute_light', 
+                        'minute_rem', 
+                        'minute_wake', 
+                        'nap_min']
+results_folder: 'results/transformer_mdl_fitbit_summary_20260105/'
+
+excl_vars_ts: ['out_of_range_min', # we alr know this through fat burn minutes
+                'sedentary_minutes',
+                'calories_out',
+                'marginal_calories', # keeping activity calories because marginal calories linked to height and weight and BMI
+                'minute_asleep', # not necessary since we have minute light, deep, wake
+                'sleep_efficiency', # info encoded in minute_wake
+                'minute_in_bed'
+             ]
+excl_vars_static: ['smoke_start_age', # since na value has been filled with 0, it is hard to interpret this variable in regression
+                    'other_smoking' # exclude as less than 1%
+                    ]
+
 xgb_run: True
 transformer_run: False
 transformer_mdl_setting: 
@@ -57,4 +93,74 @@ transformer_mdl_setting:
       T_mult: 2      # each next cycle is 2× longer
       eta_min: 1e-6
 
-    
+feature_rename_map: {
+    'Demographic': {
+          'age': 'Age',
+          'sex_male': 'Sex (male)',
+          'race_white': 'Race (White)',
+          'BMI': 'BMI'
+        },
+    'Lifestyle': {
+      'ever_smoker': 'Ever smoked',
+      'daily_cig_count': 'Daily cigarette count',
+      'smoke_years': 'Years of smoking',
+      'smoke_start_age': 'Age started smoking',
+      'other_smoking': 'Other smoking behaviors',
+      'alcohol_drinking': 'Alcohol consumption (yes/no)',
+      'past_year_drink_freq': 'Drinking frequency (past year)',
+      'binge_drinking_freq_daily': 'Binge drinking: Daily',
+      'binge_drinking_freq_monthly': 'Binge drinking: Monthly',
+      'binge_drinking_freq_monthly_or_less': 'Binge drinking: Monthly or less',
+      'binge_drinking_freq_weekly': 'Binge drinking: Weekly',
+      'missing_flag':  'Did not respond to smoking/drinking questionnaire',
+      },
+    'Heart rate': {
+      'out_of_range_min_mean': 'Out-of-range heart rate minutes (mean)',
+      'out_of_range_min_cv': 'Out-of-range heart rate minutes (CV)',
+      'fat_burn_min_mean': 'Fat burn minutes (mean)',
+      'fat_burn_min_cv': 'Fat burn minutes (CV)',
+      'cardio_min_mean': 'Cardio minutes (mean)',
+      'cardio_min_cv': 'Cardio minutes (CV)',
+      'peak_min_mean': 'Peak heart rate minutes (mean)',
+      'peak_min_cv': 'Peak heart rate minutes (CV)'
+      },
+    'Activity': {
+      'activity_calories_mean': 'Activity calories (mean)',
+      'activity_calories_cv': 'Activity calories (CV)',
+      'marginal_calories_mean': 'Marginal calories (mean)',
+      'marginal_calories_cv': 'Marginal calories (CV)',
+      'calories_out_mean': 'Calories out (mean)',
+      'calories_out_cv': 'Calories out (CV)',
+      'sedentary_minutes_mean': 'Sedentary minutes (mean)',
+      'sedentary_minutes_cv': 'Sedentary minutes (CV)',
+      'lightly_active_minutes_mean': 'Lightly active minutes (mean)',
+      'lightly_active_minutes_cv': 'Lightly active minutes (CV)',
+      'fairly_active_minutes_mean': 'Fairly active minutes (mean)',
+      'fairly_active_minutes_cv': 'Fairly active minutes (CV)',
+      'very_active_minutes_mean': 'Very active minutes (mean)',
+      'very_active_minutes_cv': 'Very active minutes (CV)',
+      'steps_mean': 'Steps (mean)',
+      'steps_cv': 'Steps (CV)'
+    },
+    'Sleep': {
+      'minute_in_bed_mean': 'Minutes in bed (mean)',
+      'minute_in_bed_cv': 'Minutes in bed (CV)',
+      'minute_asleep_mean': 'Minutes asleep (mean)',
+      'minute_asleep_cv': 'Minutes asleep (CV)',
+      'sleep_efficiency_mean': 'Sleep efficiency (mean)',
+      'sleep_efficiency_cv': 'Sleep efficiency (CV)',
+      'minute_after_wakeup_mean': 'Minutes in bed after wakeup (mean)',
+      'minute_after_wakeup_cv': 'Minutes in bed after wakeup (CV)',
+      'minute_wake_mean': 'Wake minutes (mean)',
+      'minute_wake_cv': 'Wake minutes (CV)',
+      'minute_light_mean': 'Light sleep minutes (mean)',
+      'minute_light_cv': 'Light sleep minutes (CV)',
+      'minute_deep_mean': 'Deep sleep minutes (mean)',
+      'minute_deep_cv': 'Deep sleep minutes (CV)',
+      'minute_rem_mean': 'REM sleep minutes (mean)',
+      'minute_rem_cv': 'REM sleep minutes (CV)',
+      'nap_min_mean': 'Nap minutes (mean)',
+      'nap_min_cv': 'Nap minutes (CV)'
+    }
+}
+
