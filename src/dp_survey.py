@@ -12,7 +12,7 @@ def simplify_cat_ans(qn, ans):
 def process_survey_df(df, config):
 
     # filter df to only include relevant questions
-    qn_list = list(config['ordinal_encoding'].keys()) + config['continuous_var']
+    qn_list = list(config['ordinal_encoding'].keys()) + config['continuous_var'] + config['categorical_vars']
     df = df.loc[df['question'].isin(qn_list)]
 
     unknown_ans = df.loc[df['answer'].str.startswith('PMI:'), 'answer'].unique()
@@ -38,16 +38,24 @@ def process_survey_df(df, config):
     
     # rename columns for cleaner names
     df = df.rename(columns = config['rename_map'])
+    print(df.columns)
 
     ######## clean up alcohol #######
     # people who answered yes to alcohol drinking but zero past year drink frequency - likely just social drinkers
     # df.loc[(df['alcohol_drinking']==True) & (df['past_year_drink_freq']==0)]
     # assign 0 past year drink frequency for those answered no to alcohol drinking
-    df.loc[df['alcohol_drinking']==False, 'past_year_drink_freq'] = 0
-    # assign binge drinking freq to 0 if past year drinking frequency is 0
-    df.loc[df['past_year_drink_freq']==0, 'binge_drinking_freq'] = 0
-    # assign binge drinking freq to 0 if past year drinking frequency is 0
-    df.loc[df['past_year_drink_freq']==0, 'binge_drinking_freq'] = 0
+    df.loc[df['alcohol_drinking']=='No', 'past_year_drink_freq'] = 'Never'
+    df.loc[df['alcohol_drinking']=='No', 'daily_drink_count'] = 0
+    df.loc[df['ever_smoker']==0, 'daily_cig_count'] = 0
+    # # assign binge drinking freq to 0 if past year drinking frequency is 0
+    # df.loc[df['past_year_drink_freq']==0, 'binge_drinking_freq'] = 0
+
+    # # one hot encoding for some variables
+    # print(df[config['one_hot_encode']].isna().any(axis=1))
+    # print(df.loc[df[config['one_hot_encode']].isna().any(axis=1)])
+    for col in config['one_hot_encode']:
+        df[col] = df[col].fillna('Unknown')
+    df = pd.get_dummies(df, columns = config['one_hot_encode'])
 
 
     ######## clean up smoking ########
@@ -56,7 +64,6 @@ def process_survey_df(df, config):
     df.loc[df['smoke_years']=='Unknown', 'smoke_years'] = np.nan
     # if current daily cig count is not 0, assume person didn't quit
     df.loc[~df['current_daily_cig_count'].isin(['0', 0]), 'smoke_quit_age'] = np.nan
-
 
     # check whether reported smoking years match smoke start and quit age
     df_match_smoke_years = df.loc[(df['smoke_quit_attempt']==True), ['smoke_start_age', 'smoke_quit_age']].dropna().astype(int)
@@ -71,30 +78,30 @@ def process_survey_df(df, config):
     # choose the longer one for smoke years
     df['smoke_years'] = df[['smoke_years', 'smoke_years_cal']].astype(int).max(axis=1)
 
-    df = df[['binge_drinking_freq', 'alcohol_drinking', 'past_year_drink_freq',
-            'ever_smoker', 'daily_cig_count', 'smoke_years', 'other_smoking']]
+    df = df[config['keep_cols']]
+    # print(df.loc[(df=='Unknown').any(axis=1)])
     df = df.reset_index()
 
     return df
 
-def handle_missing(df):
-    # create a missing flag and convert unknowns to 0 
-    df['missing_flag'] = False
-    for col in ['alcohol_drinking', 'ever_smoker', 'binge_drinking_freq', \
-                'binge_drinking_freq', 'daily_cig_count', 'past_year_drink_freq']:
-        df.loc[df[col]=='Unknown', 'missing_flag'] = True
-        df.loc[df[col]=='Unknown', col] = 0
+# def handle_missing(df):
+#     # create a missing flag and convert unknowns to 0 
+#     df['missing_flag'] = False
+#     for col in ['alcohol_drinking', 'ever_smoker', 'binge_drinking_freq', 'daily_drink_count',\
+#                 'binge_drinking_freq', 'daily_cig_count', 'past_year_drink_freq']:
+#         df.loc[df[col]=='Unknown', 'missing_flag'] = True
 
-    # map everything to 0 and 1
-    df[['alcohol_drinking', 'ever_smoker', 'other_smoking', 'missing_flag']] = \
-        df[['alcohol_drinking', 'ever_smoker', 'other_smoking', 'missing_flag']]\
-        .map(lambda x: {'True': 1, 'False': 0, True: 1, False: 0}.get(x, x))
+#     # map everything to 0 and 1
+#     df[['alcohol_drinking', 'ever_smoker', 'other_smoking', 'missing_flag']] = \
+#         df[['alcohol_drinking', 'ever_smoker', 'other_smoking', 'missing_flag']]\
+#         .map(lambda x: {'True': 1, 'False': 0, True: 1, False: 0}.get(x, x))
 
-    # fillna and convert everything to integer
-    df = df.fillna(0)
-    df = df.astype(int)
+#     # # fillna and convert everything to integer
+#     # df = df.fillna(0)
+#     # df = df.astype(int)
+#     df.loc[df.isna().any(axis=1)]
 
-    return df 
+#     return df 
 
 def main():
     config = yaml.safe_load(open('conf/dp_survey.yaml'))
@@ -103,7 +110,6 @@ def main():
     while os.path.exists(config['survey_df_path_pattern'].format(i=i)):
         df = pd.read_csv(config['survey_df_path_pattern'].format(i=i))
         df = process_survey_df(df, config)
-        df = handle_missing(df)
         processed_df.append(df)
         i += 1
     processed_df = pd.concat(processed_df)
