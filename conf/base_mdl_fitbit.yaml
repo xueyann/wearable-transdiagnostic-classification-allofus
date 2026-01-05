@@ -3,6 +3,20 @@ cohort: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
 time_series_feature_df: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features.csv'
 time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
 survey_df: 'data/02_intermediate/survey_df_20251210.csv'
+ordinal_var_mapping:
+# reference group 
+  binge_drinking_freq:
+    # 0: 'never_last_year'
+    1: 'monthly_or_less'
+    2: 'monthly'
+    3: 'weekly'
+    4: 'daily'
+  past_year_drink_freq:
+    # 0: 'Never'
+    1: 'Monthly Or Less'
+    2: '2 to 4 Per Month'
+    3: '2 to 3 Per Week'
+    4: '4 or More Per Week'
 # manually specify subcohort columns because order matters
 subcohort_cols: ['subcohort_CVD', 
                   'subcohort_Diabetes', 
@@ -107,7 +121,10 @@ feature_rename_map: {
       'smoke_start_age': 'Age started smoking',
       'other_smoking': 'Other smoking behaviors',
       'alcohol_drinking': 'Alcohol consumption (yes/no)',
-      'past_year_drink_freq': 'Drinking frequency (past year)',
+      'past_year_drink_freq_Monthly Or Less': 'Past year drinking: Monthly Or Less',
+      'past_year_drink_freq_2 to 4 Per Month': 'Past year drinking: 2 to 4 Per Month',
+      'past_year_drink_freq_2 to 3 Per Week': 'Past year drinking: 2 to 3 Per Week',
+      'past_year_drink_freq_4 or More Per Week': 'Past year drinking: 4 or More Per Week',
       'binge_drinking_freq_daily': 'Binge drinking: Daily',
       'binge_drinking_freq_monthly': 'Binge drinking: Monthly',
       'binge_drinking_freq_monthly_or_less': 'Binge drinking: Monthly or less',
