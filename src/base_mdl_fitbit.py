@@ -372,32 +372,35 @@ def make_mdl_df_static(cohort,
                        survey_features,
                        excl_vars_ts, # time series variables to be excluded
                        excl_vars_static, # static features to be excluded
-                       ordinal_var_mapping,
+                    #    ordinal_var_mapping,
                        test_size = 0.3):
 
 
     ######## get features #######
-    sumstats_features = [f"{x}_{suffix}" for x in time_series_features for suffix in ['mean', 'cv']]
+    sumstats_features = [f"{x}_{suffix}" for x in time_series_features for suffix in ['mean', 'std']]
     features = static_features + survey_features + sumstats_features
     # exclude some features; the ones excluded are selected in a separate notebook based on correlation
     # and domain knowledge
-    excl_vars = [f'{x}_{suffix}' for x in excl_vars_ts for suffix in ['mean', 'cv']] + excl_vars_static
+    excl_vars = [f'{x}_{suffix}' for x in excl_vars_ts for suffix in ['mean', 'std']] + excl_vars_static
     features = [x for x in features if x not in excl_vars]
 
     # Create model df
     df = cohort.merge(time_series_sumstats).merge(survey_df, how = 'left')
-    # change std to cv
-    for feat in time_series_features:
-        df[f'{feat}_cv'] = df[f'{feat}_std']/df[f'{feat}_mean']
+    # # change std to cv
+    # for feat in time_series_features:
+    #     df[f'{feat}_cv'] = df[f'{feat}_std']/df[f'{feat}_mean']
 
-    # some variables need to be converted from ordinal back to binary variables
-    for var, mapping in ordinal_var_mapping.items():
-        var_df = pd.get_dummies(df[[var]].dropna().astype(int).map(lambda x: mapping.get(x))).astype(int)
-        df = df.join(var_df, how = 'inner')
-        # modify features
-        features = [x for x in features if x != var]
+    # # some variables need to be converted from ordinal back to binary variables
+    # for var, mapping in ordinal_var_mapping.items():
+    #     var_df = pd.get_dummies(df[[var]].dropna().astype(int).map(lambda x: mapping.get(x))).astype(int)
+    #     df = df.join(var_df, how = 'inner')
+    #     # modify features
+    #     features = [x for x in features if x != var] + list(var_df.columns)
     
-    df = df[['person_id', 'index_date'] + subcohort_cols + features].dropna()
+    df = df[['person_id', 'index_date'] + subcohort_cols + features].dropna(subset = features)
+
+    # change stpes to units of 1000 for easier interpretation
+    df['steps_mean'] = df['steps_mean']/1000
 
     # split into train and test set manually
     train_idx, test_idx = assign_train_test(df.index.tolist(), test_size = test_size)
@@ -456,7 +459,7 @@ def create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, output_folder):
     # order the index
     comp_df = comp_df.loc[[x for x in list(idx_map.values()) if x in comp_df.index]]
 
-    # expoert to latex
+    # export to latex
     comp_latex = comp_df.to_latex(
         None,
         escape=False,       # allow LaTeX formatting (e.g. \textit{p})
@@ -486,17 +489,18 @@ def main():
     time_series_feature_df = pd.read_csv(config['time_series_feature_df'])
     time_series_sumstats = pd.read_csv(config['time_series_sumstats']) # for XGBoost model
     time_series_features = config['time_series_features']
-    survey_df = pd.read_csv(config['survey_df']).astype(int)
-    static_features = config['static_features']
     survey_features = config['survey_features']
+    survey_df = pd.read_csv(config['survey_df'])[['person_id']+survey_features].astype(int)
+    static_features = config['static_features']
+    
     feature_rename_map = config['feature_rename_map']
     results_folder = config['results_folder']
     mdl_conf = config['transformer_mdl_setting']
     # variables to be excluded
     excl_vars_ts = config['excl_vars_ts']
     excl_vars_static = config['excl_vars_static']
-    # mapping ordinal variables to dummy variables
-    ordinal_var_mapping = config['ordinal_var_mapping']
+    # # mapping ordinal variables to dummy variables
+    # ordinal_var_mapping = config['ordinal_var_mapping']
 
     # modify cohort so subcohort columns are 0 and 1
     cohort[subcohort_cols] = cohort[subcohort_cols].mask(cohort[subcohort_cols].notna(), 1)
@@ -536,9 +540,9 @@ def main():
                                             survey_features,
                                             excl_vars_ts, # time series variables to be excluded
                                             excl_vars_static, # static features to be excluded
-                                            ordinal_var_mapping,
+                                            # ordinal_var_mapping,
                                             test_size = 0.3)
-        # cohort_sumstats.to_csv('data/temp/cohort_sumstats_20251222.csv', index=False)
+        # df.to_csv('data/temp/cohort_sumstats_20260108.csv', index=False)
 
         logreg_res = [] # df for aggregating logreg results
         for subcohort in subcohort_cols:
@@ -589,11 +593,7 @@ def main():
         mean_features, std_features = compute_mean_and_std_batch(train_dataloader)
         mean_static, std_static = compute_mean_and_std_static_batch(train_dataloader)
 
-
-
-
         ##### time series feature only model #####
-
         input_dim = next(iter(dataset))[0].shape[1]
         model, clf = init_mdl(mdl_conf, input_dim, subcohort_cols)
         model, clf = mdl_train_loop(model, clf,

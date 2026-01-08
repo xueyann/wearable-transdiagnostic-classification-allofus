@@ -46,7 +46,20 @@ def process_survey_df(df, config):
     # assign 0 past year drink frequency for those answered no to alcohol drinking
     df.loc[df['alcohol_drinking']=='No', 'past_year_drink_freq'] = 'Never'
     df.loc[df['alcohol_drinking']=='No', 'daily_drink_count'] = 0
-    df.loc[df['ever_smoker']==0, 'daily_cig_count'] = 0
+    df.loc[df['alcohol_drinking']=='No', 'binge_drinking_freq'] = 'Never In Last Year'
+
+    df.loc[df['alcohol_drinking']=='Unknown', 'daily_drink_count'] = 'Unknown'
+    df.loc[df['alcohol_drinking']=='Unknown', 'binge_drinking_freq'] = 'Unknown'
+
+
+    df.loc[df['ever_smoker']=='No', 'daily_cig_count'] = 0
+    df.loc[df['ever_smoker']=='No', 'smoke_freq'] = 'Never'
+    df.loc[df['ever_smoker']=='Unknown', 'smoke_freq'] = 'Unknown'
+    
+    # create a flag for former smoker
+    df.loc[((df['ever_smoker']=='Yes') & (df['smoke_freq']=='Not At All')), 'smoke_freq'] = 'Former smoker'
+    # create a category of never smoker
+    df.loc[df['ever_smoker']=='No', 'smoke_freq'] = 'Never smoker'
     # # assign binge drinking freq to 0 if past year drinking frequency is 0
     # df.loc[df['past_year_drink_freq']==0, 'binge_drinking_freq'] = 0
 
