@@ -39,21 +39,69 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
 
-def create_mdl_xgb(df, features, subcohort, subcohort_cols, imb_data = False):
+def get_clf_metrics(y_true, y_prob, mdl_name, ax, threshold = 0.5): 
 
-    # get train test dataset
-    mdl_df = pd.concat([df.loc[df[subcohort]==1], 
-                        df.loc[(df[subcohort_cols]==0).all(axis=1)]])
-    # split into train and test
-    df_train = mdl_df.loc[mdl_df['train_test_label'] == 'train']
-    df_test = mdl_df.loc[mdl_df['train_test_label'] == 'test']
+    # Get prediction based on threshold
+    y_pred = (y_prob >= threshold).astype(int)
 
-    # Create X and y, train and test
-    X_train = df_train[features]
-    y_train = df_train[subcohort]
-    X_test = df_test[features]
-    y_test = df_test[subcohort]
+    # Get classification metrics
+    perf_dict = {}
+
+    perf_dict['Accuracy'] = accuracy_score(y_true, y_pred)
+    perf_dict['Precision'] = precision_score(y_true, y_pred)
+    perf_dict['Recall'] = recall_score(y_true, y_pred)
+    perf_dict['F1 Score'] = f1_score(y_true, y_pred)
+    perf_dict['ROC AUC Score'] = roc_auc_score(y_true, y_prob)
+
+    # convert to pandas series
+    perf = pd.Series(perf_dict)
+    perf.name = mdl_name
+
+    # Probability distribution stratified by true label
+    probs_pos_class = y_prob[y_true==1]
+    probs_neg_class = y_prob[y_true==0]
+    ax.hist(probs_pos_class, bins=30, alpha=0.6, label='Positive (True=1)', color='blue', density=True)
+    ax.hist(probs_neg_class, bins=30, alpha=0.6, label='Negative (True=0)', color='red', density=True)
+    ax.legend(loc = "lower right")
+    ax.set_title(mdl_name)
+
+    return perf, ax
+
+
+def create_logreg_mdl(X_train, X_test, y_train, y_test,
+                      subcohort, features, feature_rename_map, output_folder):
+
+    # compute event per variabale
+    n_events = min(len(y_train) - y_train.sum(), y_train.sum())
+    epv = n_events/len(features)
+    print(f'Event per variable = {int(epv)}, N events {n_events} / degree of freedom {len(features)}')
+
+    clf = sm.Logit(y_train, X_train)
+    results = clf.fit(maxiter = 350)
+    y_proba = results.predict(X_test)
+    test_auc = roc_auc_score(y_test, y_proba)
+    y_pred = (y_proba > 0.5).astype(int)
+    print(f'Pseudo R squared: {results.prsquared: .2f}')
+    print(f'Test ROC AUC: {test_auc: .2f}')
+    print(classification_report(y_test, y_pred))
+    # get summary df and print the variables with significant p value
+    summary = get_logreg_results(results).sort_values('p')
+    # print(summary.loc[summary['p']<=0.05])
+    # add only the significant variables to list of summaries
+    df_fmt, idx_map, latex = format_reg_results(summary, subcohort.replace('subcohort_', ''), 
+                                                rename_map = feature_rename_map, multiindex=True)
+    df_fmt = df_fmt[['Coef', r'\textit{p}']]
+    # amend the index
+    df_fmt.columns = pd.MultiIndex.from_tuples([(subcohort.replace('subcohort_', ''), x) for x in['Coef', r'\textit{p}']])
+
+    with open(f"{output_folder}{subcohort}.tex", 'w') as f:
+        f.write(latex)
     
+    return df_fmt, idx_map, y_proba
+
+
+def create_mdl_xgb(X_train, y_train, X_test, imb_data = False):
+
     if imb_data:
         print('Applying SMOTE to balance the two classes...')
         ros = RandomOverSampler(random_state=42)
@@ -79,7 +127,9 @@ def create_mdl_xgb(df, features, subcohort, subcohort_cols, imb_data = False):
     # Get the best estimator
     clf = clf.best_estimator_
 
-    return clf, X_test, y_test
+    y_proba = clf.predict_proba(X_test)[:,1]
+
+    return clf, y_proba
 
 def init_mdl(mdl_conf, input_dim, subcohort_cols):
     
@@ -410,46 +460,6 @@ def make_mdl_df_static(cohort,
     return df, features
 
 
-def create_logreg_mdl(df, subcohort, subcohort_cols, features, feature_rename_map, output_folder):
-
-
-    # get train test dataset
-    mdl_df = pd.concat([df.loc[df[subcohort]==1], 
-                        df.loc[(df[subcohort_cols]==0).all(axis=1)]])
-    # split into train and test
-    df_train = mdl_df.loc[mdl_df['train_test_label'] == 'train']
-    df_test = mdl_df.loc[mdl_df['train_test_label'] == 'test']
-    X_train, y_train = sm.add_constant(df_train[features]), df_train[subcohort]
-    X_test, y_test = sm.add_constant(df_test[features]), df_test[subcohort]
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state = 41)
-    # compute event per variabale
-    n_events = min(len(y_train) - y_train.sum(), y_train.sum())
-    epv = n_events/len(features)
-    print(f'Event per variable = {int(epv)}, N events {n_events} / degree of freedom {len(features)}')
-
-    clf = sm.Logit(y_train, X_train)
-    results = clf.fit(maxiter = 350)
-    y_proba = results.predict(X_test)
-    test_auc = roc_auc_score(y_test, y_proba)
-    y_pred = (y_proba > 0.5).astype(int)
-    print(f'Pseudo R squared: {results.prsquared: .2f}')
-    print(f'Test ROC AUC: {test_auc: .2f}')
-    print(classification_report(y_test, y_pred))
-    # get summary df and print the variables with significant p value
-    summary = get_logreg_results(results).sort_values('p')
-    # print(summary.loc[summary['p']<=0.05])
-    # add only the significant variables to list of summaries
-    df_fmt, idx_map, latex = format_reg_results(summary, subcohort.replace('subcohort_', ''), 
-                                                rename_map = feature_rename_map, multiindex=True)
-    df_fmt = df_fmt[['Coef', r'\textit{p}']]
-    # amend the index
-    df_fmt.columns = pd.MultiIndex.from_tuples([(subcohort.replace('subcohort_', ''), x) for x in['Coef', r'\textit{p}']])
-
-    with open(f"{output_folder}{subcohort}.tex", 'w') as f:
-        f.write(latex)
-    
-    return df_fmt, idx_map
-
 def create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, output_folder):
     # Compare results across all cohorts for logreg
     comp_df = reduce(lambda x, y: x.join(y, how = 'outer'), logreg_res)
@@ -480,6 +490,38 @@ def create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, output_folder):
         f.write(comp_latex)
         f.write(r"\end{landscape}")
     return
+
+
+def create_metric_comp(logreg_metrics, xgb_metrics, subcohort_cols, output_folder):
+    logreg_metrics = pd.concat(logreg_metrics, axis = 1)
+    print(logreg_metrics)
+    logreg_metrics.to_csv(f'{output_folder}/logreg_metrics.csv')
+    logreg_metrics = logreg_metrics.rename(
+                    columns = {col: col.split(' ')[0] for col in logreg_metrics.columns})
+    print(logreg_metrics)
+    xgb_metrics = pd.concat(xgb_metrics, axis = 1)
+    xgb_metrics.to_csv(f'{output_folder}/logreg_metrics.csv')
+    xgb_metrics = xgb_metrics.rename(
+                    columns = {col: col.split(' ')[0] for col in xgb_metrics.columns})
+    # Combine and index them using multiindex
+    df = pd.concat([logreg_metrics, xgb_metrics], axis = 1, keys = ['LogReg', 'XGBoost'])
+    print(df)
+    # ordering
+    df = df.swaplevel(0, 1, axis=1)
+    df = df[pd.MultiIndex.from_product(
+            [[x.replace('subcohort_', '') for x in subcohort_cols], ['LogReg', 'XGBoost']])]
+    print(df)
+    df.to_latex(
+        f'{output_folder}/static_mdl_perf.tex',
+        escape=True,
+        float_format="%.3f",
+        longtable = True,
+        bold_rows = True,
+        multicolumn_format = 'c',
+        caption= "Logistic regression and XGB model performance across subcohorts"
+    )
+    return
+    
 
 def main():
     config = yaml.safe_load(open('conf/base_mdl_fitbit.yaml'))
@@ -544,22 +586,64 @@ def main():
                                             test_size = 0.3)
         # df.to_csv('data/temp/cohort_sumstats_20260108.csv', index=False)
 
-        logreg_res = [] # df for aggregating logreg results
+        logreg_res = [] # df for aggregating logreg results (coefficients)
+        logreg_metrics = [] # for aggregating logreg metrics
+        xgb_metrics = [] # for aggregating xgb metrics
+        # Initialise figure to plot everything on the same chart
+        fig, axs = plt.subplots(len(subcohort_cols), 2)
+        fig = plt.figure(figsize=(12, 36))
+
         for subcohort in subcohort_cols:
             print(subcohort)
+            i = subcohort_cols.index(subcohort)
+
+            # get train test dataset
+            mdl_df = pd.concat([df.loc[df[subcohort]==1], 
+                            df.loc[(df[subcohort_cols]==0).all(axis=1)]])
+            # split into train and test
+            df_train = mdl_df.loc[mdl_df['train_test_label'] == 'train']
+            df_test = mdl_df.loc[mdl_df['train_test_label'] == 'test']
+
+            # Get train and test
+            X_train = df_train[features]
+            y_train = df_train[subcohort]
+            X_test = df_test[features]
+            y_test = df_test[subcohort]
+
             # Logistic regression
-            logreg_res_fmt, idx_map = create_logreg_mdl(df, subcohort, subcohort_cols, features, 
-                                                        feature_rename_map,
-                                                        results_folder_logreg)   
-            logreg_res.append(logreg_res_fmt)      
+            logreg_res_fmt, idx_map, y_proba_logreg = create_logreg_mdl(sm.add_constant(X_train), 
+                                                                        sm.add_constant(X_test), 
+                                                                        y_train, 
+                                                                        y_test,
+                                                                        subcohort, 
+                                                                        features, 
+                                                                        feature_rename_map,
+                                                                        results_folder_logreg) 
+            # Append results to list 
+            logreg_res.append(logreg_res_fmt)
+            logreg_metric, axs[i, 0] = get_clf_metrics(y_test, y_proba_logreg, 
+                                                    f"{subcohort.replace('subcohort_', '')} LogReg", 
+                                                    axs[i, 0])
+            logreg_metrics.append(logreg_metric)
+            
             # XGBoost model and assess xgboost performance
-            clf, X_test, y_test = create_mdl_xgb(df, features, subcohort, subcohort_cols, imb_data = False)
+            clf, y_proba_xgb = create_mdl_xgb(X_train, y_train, X_test, imb_data = False)
             assess_clf_perf_xgb(clf, X_test, y_test, 
                                 f'{results_folder_xgb}/{subcohort}/',
                                 features,
                                 feature_rename_map = None,
                                 labels = ['Negative (0)', 'Positive (1)'])
+            # append xgb results to list
+            xgb_metric, axs[i, 1] = get_clf_metrics(y_test, y_proba_xgb, 
+                                    f"{subcohort.replace('subcohort_', '')} XGBoost", 
+                                    axs[i, 1])
+            xgb_metrics.append(xgb_metric)
+            
+        # comparison across subcohorts    
         create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, results_folder_logreg)
+        create_metric_comp(logreg_metrics, xgb_metrics, subcohort_cols, results_folder)
+        # Save the figure
+        fig.savefig(f'{results_folder}/static_mdl_proba_comp.png', dpi = 300)
     
             
         sys.exit()
