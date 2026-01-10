@@ -185,7 +185,7 @@ def mdl_train_loop(model, clf,
     model = model.to(device)
     clf = clf.to(device)
     # define loss function, positive weight proportional to subcohort sizes relative to control 
-    loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([5]).to(device))
+    loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight).to(device))
     # loss_fn = nn.BCEWithLogitsLoss()
 
     # Record the epoch losses for plotting
@@ -534,7 +534,6 @@ def main():
     survey_features = config['survey_features']
     survey_df = pd.read_csv(config['survey_df'])[['person_id']+survey_features].astype(int)
     static_features = config['static_features']
-    
     feature_rename_map = config['feature_rename_map']
     results_folder = config['results_folder']
     mdl_conf = config['transformer_mdl_setting']
@@ -658,12 +657,12 @@ def main():
         for col in subcohort_cols:
             pos_weight.append(cohort.loc[cohort[col]==0].shape[0]/cohort.loc[cohort[col]==1].shape[0])
         
-
         # get time series cohort for transformer model
         cohort_ts = cohort.merge(time_series_feature_df)
 
         dataset = SleepDataset(cohort_ts, 
                                 features = time_series_features, 
+                                static_features = [x for x in static_features + survey_features if x not in excl_vars_static],
                                 date_col = 'date', 
                                 label_col = subcohort_cols)
         # Split into dataloader
