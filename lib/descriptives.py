@@ -100,13 +100,32 @@ def compare_two_cohorts_side_by_side(df1, df2, features,
 import pandas as pd
 import numpy as np
 
+def get_drug_descriptives(df, 
+                          subcohort_col,
+                          drug_rename_map = None):
+    n = df['person_id'].nunique()
+    df = df[['person_id', 'drug_class']].groupby('drug_class').nunique()
+    subcohort_col = subcohort_col.replace('subcohort_', '')
+    df[subcohort_col] = (df['person_id']/n).apply(lambda x: f"{'{:.1%}'.format(x)}")
+    df[subcohort_col] = df.apply(lambda x: f'{x['person_id']} ({x[subcohort_col]})', axis=1)
+
+    if drug_rename_map is not None:
+        df.index = df.index.map(drug_rename_map)
+    return df[[subcohort_col]]
+
 def generate_descriptives_split(df, 
+                                drug_df,
                                 subcohort_name, 
                                 continuous_vars = ['age', 'waist_circum', 'hip_circum', 'BMI'], 
                                 categorical_vars = ['sex_at_birth', 'race', 'ethnicity'], 
-                                var_map = None):
+                                var_map = None, 
+                                drug_rename_map = None):
     """
     Generate R-style descriptive statistics for continuous and categorical variables.
+
+    Input dataframes:
+    df: contains all the variables desired
+    drug_df: contains drug df, it is unique because prescriptions are not mutually exclusive
 
     Returns two LaTeX-ready DataFrames:
     1. continuous_df: One row per variable with mean (SD), median (IQR)
@@ -115,9 +134,9 @@ def generate_descriptives_split(df,
     ### CONTINUOUS ###
     cont_rows = []
     for var in continuous_vars:
-        series = df[var].dropna()
+        series = df[var]
         n = series.count()
-        missing = series.isna().sum()
+        missing = series.isna().sum() # keep na in series so it can count missing
         mean = series.mean()
         std = series.std()
         median = series.median()
@@ -138,27 +157,37 @@ def generate_descriptives_split(df,
 
     ### CATEGORICAL ###
     cat_rows = []
-    for var in categorical_vars:
+    for var, values in categorical_vars.items():
         counts = df[var].value_counts(dropna=False)
         percents = df[var].value_counts(normalize=True, dropna=False) * 100
         first = True
-        for level in counts.index:
-            label = str(level) if pd.notna(level) else 'Missing'
-            row = {
-                'Variable': var,
-                'Value': label,
-                subcohort_name: f"{counts[level]} ({percents[level]:.2f})"
-            }
-            cat_rows.append(row)
-            first = False
+        for level in values: # Use the order of values specified
+            if level in list(counts.index):
+                label = str(level) if pd.notna(level) else 'Unknown'
+                row = {
+                    'Variable': var,
+                    'Value': label,
+                    subcohort_name: f"{counts[level]} ({percents[level]:.2f})"
+                }
+                cat_rows.append(row)
+                first = False
     categorical_df = pd.DataFrame(cat_rows)
     categorical_df.insert(1, 'Measure', 'N (%)')
 
+    ### Drug descriptive ###
+    drug_desc = get_drug_descriptives(drug_df, subcohort_name, drug_rename_map).reset_index(names = 'Value')
+    drug_desc.insert(1, 'Measure', 'N (%)')
+    drug_desc.insert(1, 'Variable', 'Medication')
+
     # concatenate continuous and categorical
-    final_df = pd.concat([continuous_df, categorical_df])
+    final_df = pd.concat([continuous_df, categorical_df, drug_desc])
     # Map variable name if any
+    # filter variable map
+    var_map = {k: v for k, v in var_map.items() if k in final_df['Variable'].unique()}
     final_df['Variable'] = final_df['Variable'].apply(lambda x: var_map[x] if x in var_map.keys() else x)
     final_df = final_df.set_index(['Variable', 'Measure', 'Value'])
+    # order the variables
+    final_df = final_df.loc[var_map.values()]
 
     return final_df
 

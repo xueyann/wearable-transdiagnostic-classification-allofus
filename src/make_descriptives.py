@@ -30,7 +30,7 @@ def main():
     ### Get all the dataframes ###
     person_df = pd.read_csv(config['person_df'])
     cohort = pd.read_csv(config['cohort'])
-    survey_df = pd.read_csv(config['survey_df']).astype(int)
+    survey_df = pd.read_csv(config['survey_df'])
     sumstats_df = pd.read_csv(config['time_series_sumstats'])
     drug_df = pd.read_csv(config['drug_df'])
     
@@ -50,9 +50,9 @@ def main():
         .merge(survey_df[['person_id'] + survey_features])\
         .merge(sumstats_df[['person_id'] + sumstats_features])
 
-    ### map some features back to the categories ###
-    for feat, value_map in config['feature_value_map'].items():
-        df[feat] = df[feat].map(lambda x: value_map.get(int(x)) if not np.isnan(x) else np.nan)
+    # ### map some features back to the categories ###
+    # for feat, value_map in config['feature_value_map'].items():
+    #     df[feat] = df[feat].map(lambda x: value_map.get(int(x)) if not np.isnan(x) else np.nan)
     
     desc = []
     desc.append(generate_descriptives_split(df.loc[df[subcohort_cols].isna().all(axis=1)],
@@ -90,7 +90,7 @@ def main():
     latex = latex.replace(r"\begin{longtable}{lllllllllll}", 
                           r"""\begin{landscape}
                                 \footnotesize
-                                \begin{longtable}{>{\raggedright\arraybackslash}p{2.1cm}l>{\raggedright\arraybackslash}m{2.6cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}}""")
+                                \begin{longtable}{>{\raggedright\arraybackslash}p{2.1cm}l>{\setstretch{0.9}\raggedright\arraybackslash}m{2.6cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}}""")
     latex = latex.replace(r""" &  &  & Control & CVD & Diabetes & OSA & MDD & Anxiety & Bipolar & ADHD \\""", 
                           r"""  &  &  & Control & CVD & Diabetes & OSA & MDD & Anxiety & Bipolar & ADHD \\
                                 \cmidrule(rl){4-4}
