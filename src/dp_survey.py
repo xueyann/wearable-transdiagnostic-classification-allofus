@@ -32,6 +32,11 @@ def process_survey_df(df, config):
     # pivot questions out
     df = df.pivot(columns = 'question', values = 'answer', index = 'person_id')
 
+    # binning for categorical vars
+    for var, var_map in config['categorical_bins'].items():
+        df[var] = df[var].map(lambda x: var_map.get(x) if x in var_map.keys() else x)
+        print(df[var].unique())
+
     # smoking other than cigarettes
     df['other_smoking'] = df[config['other_smoking']].all(axis=1)
     df = df.drop(columns = config['drop_col_other_smoking'])

@@ -2,7 +2,7 @@ cohort: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
 # cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_clean_control_20251211.csv'
 time_series_feature_df: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features.csv'
 time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
-survey_df: 'data/02_intermediate/survey_df_20260105.csv'
+survey_df: 'data/02_intermediate/survey_df_20260113.csv'
 # ordinal_var_mapping:
 # # reference group 
 #   binge_drinking_freq:
@@ -29,21 +29,22 @@ static_features: ['age',
                   'sex_male', 
                   'race_nonwhite',
                   'BMI']
-survey_features: ['alcohol_drinking_Yes',
-                  # 'alcohol_drinking_No',
-                  'alcohol_drinking_Unknown',
-                  'binge_drinking_freq_Daily',
+survey_features: ['binge_drinking_freq_Daily',
                   'binge_drinking_freq_Weekly',
                   'binge_drinking_freq_Monthly',
                   'binge_drinking_freq_Less Than Monthly',
+                  # 'alcohol_drinking_Yes',
+                  # 'alcohol_drinking_No',
+                  # 'alcohol_drinking_Unknown',
                   # 'binge_drinking_freq_Never In Last Year',
                   'binge_drinking_freq_Unknown',
                   # 'daily_drink_count_0',
                   'daily_drink_count_1 or 2',
                   'daily_drink_count_3 or 4',
-                  'daily_drink_count_5 or 6',
-                  'daily_drink_count_7 to 9',
-                  'daily_drink_count_10 or More',
+                  'daily_drink_count_5 or More',
+                  # 'daily_drink_count_5 or 6',
+                  # 'daily_drink_count_7 to 9',
+                  # 'daily_drink_count_10 or More',
                   'daily_drink_count_Unknown',
                   # 'ever_smoker_Yes',
                   # 'ever_smoker_Unknown', 
@@ -93,20 +94,20 @@ excl_vars_static: ['smoke_start_age', # since na value has been filled with 0, i
                     ]
 
 xgb_run: True
-transformer_run: False
+transformer_run: True
 transformer_mdl_setting: 
   val_split: 0.15
   test_split: 0.15
   batch_size: 128
   d_model: 64
-  n_layers: 2
-  n_heads: 2
+  n_layers: 1
+  n_heads: 1
   d_ff: 256
   max_len: 21
   dropout_p: 0.2
   ts_only_config:
-    max_epoch: 15
-    initial_lr: 5e-3
+    max_epoch: 30
+    initial_lr: 8e-3
     weight_decay: 0.1
     cosine_anneal_lr_scheduler:
       T_0: 5      # first restart after 10 epochs
@@ -146,9 +147,10 @@ feature_rename_map: {
       # 'past_year_drink_freq_Unknown': 'Past year drinking: Unknown',
       'daily_drink_count_1 or 2': 'Daily drink count: 1 or 2',
       'daily_drink_count_3 or 4': 'Daily drink count: 3 or 4',
-      'daily_drink_count_5 or 6': 'Daily drink count: 5 or 6',
-      'daily_drink_count_7 to 9': 'Daily drink count: 7 to 9',
-      'daily_drink_count_10 or More': 'Daily drink count: 10 or more',
+      'daily_drink_count_5 or More': 'Daily drink count: 5 or More',
+      # 'daily_drink_count_5 or 6': 'Daily drink count: 5 or 6',
+      # 'daily_drink_count_7 to 9': 'Daily drink count: 7 to 9',
+      # 'daily_drink_count_10 or More': 'Daily drink count: 10 or more',
 
       'binge_drinking_freq_Monthly or less': 'Binge drinking: Monthly or less',
       'binge_drinking_freq_Monthly': 'Binge drinking: Monthly',

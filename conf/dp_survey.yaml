@@ -1,6 +1,6 @@
 
 survey_df_path_pattern: 'data/01_raw/survey_df_20250514_{i}.csv'
-savepath: 'data/02_intermediate/survey_df_20260105.csv'
+savepath: 'data/02_intermediate/survey_df_20260113.csv'
 ordinal_encoding:
     # alcohol
     # 'Alcohol: Alcohol Participant':
@@ -84,6 +84,14 @@ categorical_vars: [
   'Smoking: Average Daily Cigarette Number'
 ]
 
+categorical_bins: {
+  'Alcohol: Average Daily Drink Count': {
+    '5 or 6': '5 or More',
+    '7 to 9': '5 or More',
+    '10 or More': '5 or More'
+  }
+}
+
 continuous_var:
     ['Smoking: Number Of Years',
     'Smoking: Average Daily Cigarette Number',
@@ -139,9 +147,10 @@ keep_cols: ['binge_drinking_freq_Daily',
             # 'daily_drink_count_0',
             'daily_drink_count_1 or 2',
             'daily_drink_count_3 or 4',
-            'daily_drink_count_5 or 6',
-            'daily_drink_count_7 to 9',
-            'daily_drink_count_10 or More',
+            'daily_drink_count_5 or More',
+            # 'daily_drink_count_5 or 6',
+            # 'daily_drink_count_7 to 9',
+            # 'daily_drink_count_10 or More',
             'daily_drink_count_Unknown',
             
             'ever_smoker_Yes',

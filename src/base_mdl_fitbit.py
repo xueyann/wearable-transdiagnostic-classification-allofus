@@ -22,8 +22,10 @@ from sklearn.metrics import (
     confusion_matrix,
     roc_auc_score,
     classification_report,
-    roc_curve
+    roc_curve,
+    brier_score_loss
 )
+from sklearn.calibration import calibration_curve
 import statsmodels.api as sm
 
 from lib.transformer import SleepDataset, TransformerClassifier, ClassifierHead, \
@@ -39,7 +41,17 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
 
-def get_clf_metrics(y_true, y_prob, mdl_name, ax, threshold = 0.5): 
+def get_clf_metrics(y_true, y_prob, mdl_name, ax1, ax2, threshold = 0.5): 
+    """
+    Docstring for get_clf_metrics
+    
+    :param y_true: Description
+    :param y_prob: Description
+    :param mdl_name: Description
+    :param ax1: axes where probability density will be plotted
+    :param ax2: axes where calibration curve will be plotted
+    :param threshold: Description
+    """
 
     # Get prediction based on threshold
     y_pred = (y_prob >= threshold).astype(int)
@@ -52,20 +64,40 @@ def get_clf_metrics(y_true, y_prob, mdl_name, ax, threshold = 0.5):
     perf_dict['Recall'] = recall_score(y_true, y_pred)
     perf_dict['F1 Score'] = f1_score(y_true, y_pred)
     perf_dict['ROC AUC Score'] = roc_auc_score(y_true, y_prob)
+    perf_dict['Brier Score'] = brier_score_loss(y_true, y_prob)
+    perf_dict['Prevalence'] = y_true.sum()/len(y_true)
+    perf_dict['Scaled Brier Score'] = 1 - perf_dict['Brier Score']/perf_dict['Prevalence']
 
     # convert to pandas series
     perf = pd.Series(perf_dict)
     perf.name = mdl_name
 
-    # Probability distribution stratified by true label
+    ##### plotting #####
+    # 1. Probability distribution stratified by true label
     probs_pos_class = y_prob[y_true==1]
     probs_neg_class = y_prob[y_true==0]
-    ax.hist(probs_pos_class, bins=30, alpha=0.6, label='Positive (True=1)', color='blue', density=True)
-    ax.hist(probs_neg_class, bins=30, alpha=0.6, label='Negative (True=0)', color='red', density=True)
-    ax.legend(loc = "lower right")
-    ax.set_title(mdl_name)
+    ax1.hist(probs_pos_class, bins=30, alpha=0.6, label='Positive (True=1)', color='blue', density=True)
+    ax1.hist(probs_neg_class, bins=30, alpha=0.6, label='Negative (True=0)', color='red', density=True)
+    ax1.legend(loc = "lower right")
+    ax1.set_title(mdl_name)
 
-    return perf, ax
+
+    # 2. Calibration curve
+    prob_true, prob_pred = calibration_curve(
+        y_true,
+        y_prob,
+        n_bins=10,
+        strategy="quantile"  # or "uniform"
+        )
+
+    ax2.plot(prob_pred, prob_true, marker='o', label='Model')
+    ax2.plot([0, 1], [0, 1], linestyle='--', label='Perfect calibration')
+    ax2.set_xlabel("Predicted probability")
+    ax2.set_ylabel("Observed event rate")
+    ax2.legend()
+    ax2.set_title(mdl_name)
+
+    return perf, ax1, ax2
 
 
 def create_logreg_mdl(X_train, X_test, y_train, y_test,
@@ -423,7 +455,8 @@ def make_mdl_df_static(cohort,
                        excl_vars_ts, # time series variables to be excluded
                        excl_vars_static, # static features to be excluded
                     #    ordinal_var_mapping,
-                       test_size = 0.3):
+                       test_size = 0.3,
+                       baseline_only = False):
 
 
     ######## get features #######
@@ -451,6 +484,11 @@ def make_mdl_df_static(cohort,
 
     # change stpes to units of 1000 for easier interpretation
     df['steps_mean'] = df['steps_mean']/1000
+
+    # only baseline_only is true, don't use the sumstats features
+    if baseline_only:
+        features = [x for x in features if x not in sumstats_features]
+        df = df[['person_id', 'index_date'] + subcohort_cols + features]
 
     # split into train and test set manually
     train_idx, test_idx = assign_train_test(df.index.tolist(), test_size = test_size)
@@ -492,36 +530,149 @@ def create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, output_folder):
     return
 
 
-def create_metric_comp(logreg_metrics, xgb_metrics, subcohort_cols, output_folder):
-    logreg_metrics = pd.concat(logreg_metrics, axis = 1)
+def create_metric_comp(logreg_metrics, logreg_metrics_base,
+                           xgb_metrics, xgb_metrics_base, 
+                           subcohort_cols, output_folder):
+
+    def concat_helper(metrics):
+        # Modifies in place
+        metrics = pd.concat(metrics, axis = 1)
+        metrics = metrics.rename(columns = {col: col.split(' ')[0] for col in metrics.columns})
+        return metrics
+    # Concatenate everything
+    logreg_metrics = concat_helper(logreg_metrics)
+    logreg_metrics_base = concat_helper(logreg_metrics_base)
+    xgb_metrics = concat_helper(xgb_metrics)
+    xgb_metrics_base = concat_helper(xgb_metrics_base)
     print(logreg_metrics)
-    logreg_metrics.to_csv(f'{output_folder}/logreg_metrics.csv')
-    logreg_metrics = logreg_metrics.rename(
-                    columns = {col: col.split(' ')[0] for col in logreg_metrics.columns})
-    print(logreg_metrics)
-    xgb_metrics = pd.concat(xgb_metrics, axis = 1)
-    xgb_metrics.to_csv(f'{output_folder}/logreg_metrics.csv')
-    xgb_metrics = xgb_metrics.rename(
-                    columns = {col: col.split(' ')[0] for col in xgb_metrics.columns})
+
     # Combine and index them using multiindex
-    df = pd.concat([logreg_metrics, xgb_metrics], axis = 1, keys = ['LogReg', 'XGBoost'])
+    df = pd.concat([logreg_metrics_base, logreg_metrics, xgb_metrics_base, xgb_metrics], 
+                   axis = 1, 
+                   keys = ['LogReg(Base)', 
+                            'LogReg(+Fitbit)'
+                            'XGBoost(Base)',
+                            'XGBoost(+Fitbit)'])
     print(df)
     # ordering
     df = df.swaplevel(0, 1, axis=1)
     df = df[pd.MultiIndex.from_product(
-            [[x.replace('subcohort_', '') for x in subcohort_cols], ['LogReg', 'XGBoost']])]
-    print(df)
-    df.to_latex(
-        f'{output_folder}/static_mdl_perf.tex',
-        escape=True,
-        float_format="%.3f",
-        longtable = True,
-        bold_rows = True,
-        multicolumn_format = 'c',
-        caption= "Logistic regression and XGB model performance across subcohorts"
-    )
-    return
+            [[x.replace('subcohort_', '') for x in subcohort_cols], 
+             ['LogReg(Base)', 
+            'LogReg(+Fitbit)'
+            'XGBoost(Base)',
+            'XGBoost(+Fitbit)']])]
     
+    latex_str = ''
+    for subcohort in [x.replace('subcohort_', '') for x in subcohort_cols]:
+        latex_str = latex_str + df.loc[:, subcohort].to_latex(None,
+                                                        escape=True,
+                                                        float_format="%.3f",
+                                                        longtable = True,
+                                                        bold_rows = True,
+                                                        multicolumn_format = 'c',
+                                                        # caption= "Logistic regression and XGB model performance across subcohorts"
+                                                    )
+    
+    with open(f'{output_folder}/static_mdl_perf.tex') as f:
+        f.write(latex_str)
+    return
+
+def create_logreg_and_xgb_mdl_comp(cohort, 
+                                    survey_df, 
+                                    time_series_sumstats,
+                                    time_series_features,
+                                    subcohort_cols,
+                                    static_features,
+                                    survey_features,
+                                    excl_vars_ts, # time series variables to be excluded
+                                    excl_vars_static, # static features to be excluded
+                                    # ordinal_var_mapping,
+                                    feature_rename_map,
+                                    results_folder_logreg,
+                                    results_folder_xgb,
+                                    fig1_path,
+                                    fig2_path,
+                                    test_size = 0.3,
+                                    baseline_only = False):
+        # get model df
+        df, features = make_mdl_df_static(cohort, 
+                                            survey_df, 
+                                            time_series_sumstats,
+                                            time_series_features,
+                                            subcohort_cols,
+                                            static_features,
+                                            survey_features,
+                                            excl_vars_ts, # time series variables to be excluded
+                                            excl_vars_static, # static features to be excluded
+                                            # ordinal_var_mapping,
+                                            test_size = test_size,
+                                            baseline_only = baseline_only)
+        # df.to_csv('data/temp/cohort_sumstats_20260108.csv', index=False)
+
+        logreg_res = [] # df for aggregating logreg results (coefficients)
+        logreg_metrics = [] # for aggregating logreg metrics
+        xgb_metrics = [] # for aggregating xgb metrics
+        # Initialise figure to plot everything on the same chart
+        fig1, axs1 = plt.subplots(len(subcohort_cols), 2, figsize=(12, 36))
+        fig2, axs2 = plt.subplots(len(subcohort_cols), 2, figsize=(12, 36))
+
+        for subcohort in subcohort_cols:
+            print(subcohort)
+            i = subcohort_cols.index(subcohort)
+
+            # get train test dataset
+            mdl_df = pd.concat([df.loc[df[subcohort]==1], 
+                            df.loc[(df[subcohort_cols]==0).all(axis=1)]])
+            # split into train and test
+            df_train = mdl_df.loc[mdl_df['train_test_label'] == 'train']
+            df_test = mdl_df.loc[mdl_df['train_test_label'] == 'test']
+
+            # Get train and test
+            X_train = df_train[features]
+            y_train = df_train[subcohort]
+            X_test = df_test[features]
+            y_test = df_test[subcohort]
+
+            # Logistic regression
+            logreg_res_fmt, idx_map, y_proba_logreg = create_logreg_mdl(sm.add_constant(X_train), 
+                                                                        sm.add_constant(X_test), 
+                                                                        y_train, 
+                                                                        y_test,
+                                                                        subcohort, 
+                                                                        features, 
+                                                                        feature_rename_map,
+                                                                        results_folder_logreg) 
+            # Append results to list 
+            logreg_res.append(logreg_res_fmt)
+            logreg_metric, axs1[i, 0], axs2[i, 0] = get_clf_metrics(y_test, y_proba_logreg, 
+                                                    f"{subcohort.replace('subcohort_', '')} LogReg", 
+                                                    axs1[i, 0], 
+                                                    axs2[i, 0])
+            logreg_metrics.append(logreg_metric)
+            
+            # XGBoost model and assess xgboost performance
+            clf, y_proba_xgb = create_mdl_xgb(X_train, y_train, X_test, imb_data = False)
+            assess_clf_perf_xgb(clf, X_test, y_test, 
+                                f'{results_folder_xgb}/{subcohort}/',
+                                features,
+                                feature_rename_map = None,
+                                labels = ['Negative (0)', 'Positive (1)'])
+            # append xgb results to list
+            xgb_metric, axs1[i, 1], axs2[i, 1] = get_clf_metrics(y_test, y_proba_xgb, 
+                                                    f"{subcohort.replace('subcohort_', '')} XGBoost", 
+                                                    axs1[i, 1],
+                                                    axs2[i, 1])
+            xgb_metrics.append(xgb_metric)
+            
+        # comparison across subcohorts    
+        create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, results_folder_logreg)
+        # Save the figure
+        fig1.savefig(fig1_path, dpi = 300)
+        fig2.savefig(fig2_path, dpi = 300)
+
+        return logreg_metrics, xgb_metrics
+
 
 def main():
     config = yaml.safe_load(open('conf/base_mdl_fitbit.yaml'))
@@ -552,6 +703,8 @@ def main():
     results_folder_with_static = f'{results_folder}/with_static/'
     results_folder_xgb = f'{results_folder}/xgb/'
     results_folder_logreg = f'{results_folder}/logreg/'
+    results_folder_xgb_base = f'{results_folder}/xgb_base/'
+    results_folder_logreg_base = f'{results_folder}/logreg_base/'
 
     # ensure directory exists
     # if not os.path.exists(results_folder):
@@ -560,6 +713,10 @@ def main():
         os.makedirs(results_folder_ts_only)
     if not os.path.exists(results_folder_with_static):
         os.makedirs(results_folder_with_static)
+    if not os.path.exists(results_folder_xgb_base):
+        os.makedirs(results_folder_xgb_base)
+    if not os.path.exists(results_folder_logreg_base):
+        os.makedirs(results_folder_logreg_base)
     if not os.path.exists(results_folder_xgb):
         os.makedirs(results_folder_xgb)
     if not os.path.exists(results_folder_logreg):
@@ -571,79 +728,48 @@ def main():
     ##################################
 
     if config['xgb_run']:
-        # get model df
-        df, features = make_mdl_df_static(cohort, 
-                                            survey_df, 
-                                            time_series_sumstats,
-                                            time_series_features,
-                                            subcohort_cols,
-                                            static_features,
-                                            survey_features,
-                                            excl_vars_ts, # time series variables to be excluded
-                                            excl_vars_static, # static features to be excluded
-                                            # ordinal_var_mapping,
-                                            test_size = 0.3)
-        # df.to_csv('data/temp/cohort_sumstats_20260108.csv', index=False)
 
-        logreg_res = [] # df for aggregating logreg results (coefficients)
-        logreg_metrics = [] # for aggregating logreg metrics
-        xgb_metrics = [] # for aggregating xgb metrics
-        # Initialise figure to plot everything on the same chart
-        fig, axs = plt.subplots(len(subcohort_cols), 2)
-        fig = plt.figure(figsize=(12, 36))
+        # Model with just baseline features
+        logreg_metrics_base, xgb_metrics_base = create_logreg_and_xgb_mdl_comp(cohort, 
+                                                                    survey_df, 
+                                                                    time_series_sumstats,
+                                                                    time_series_features,
+                                                                    subcohort_cols,
+                                                                    static_features,
+                                                                    survey_features,
+                                                                    excl_vars_ts, # time series variables to be excluded
+                                                                    excl_vars_static, # static features to be excluded
+                                                                    # ordinal_var_mapping,
+                                                                    feature_rename_map,
+                                                                    results_folder_logreg_base,
+                                                                    results_folder_xgb_base,
+                                                                    f'{results_folder}/static_mdl_base_proba_comp.png',
+                                                                    f'{results_folder}/static_mdl_base_calibration_curve.png',
+                                                                    test_size = 0.3,
+                                                                    baseline_only = True)
 
-        for subcohort in subcohort_cols:
-            print(subcohort)
-            i = subcohort_cols.index(subcohort)
+        # Full model
+        logreg_metrics, xgb_metrics = create_logreg_and_xgb_mdl_comp(cohort, 
+                                                                    survey_df, 
+                                                                    time_series_sumstats,
+                                                                    time_series_features,
+                                                                    subcohort_cols,
+                                                                    static_features,
+                                                                    survey_features,
+                                                                    excl_vars_ts, # time series variables to be excluded
+                                                                    excl_vars_static, # static features to be excluded
+                                                                    # ordinal_var_mapping,
+                                                                    feature_rename_map,
+                                                                    results_folder_logreg,
+                                                                    results_folder_xgb,
+                                                                    f'{results_folder}/static_mdl_base_proba_comp.png',
+                                                                    f'{results_folder}/static_mdl_base_calibration_curve.png',
+                                                                    test_size = 0.3,
+                                                                    baseline_only = False)
 
-            # get train test dataset
-            mdl_df = pd.concat([df.loc[df[subcohort]==1], 
-                            df.loc[(df[subcohort_cols]==0).all(axis=1)]])
-            # split into train and test
-            df_train = mdl_df.loc[mdl_df['train_test_label'] == 'train']
-            df_test = mdl_df.loc[mdl_df['train_test_label'] == 'test']
-
-            # Get train and test
-            X_train = df_train[features]
-            y_train = df_train[subcohort]
-            X_test = df_test[features]
-            y_test = df_test[subcohort]
-
-            # Logistic regression
-            logreg_res_fmt, idx_map, y_proba_logreg = create_logreg_mdl(sm.add_constant(X_train), 
-                                                                        sm.add_constant(X_test), 
-                                                                        y_train, 
-                                                                        y_test,
-                                                                        subcohort, 
-                                                                        features, 
-                                                                        feature_rename_map,
-                                                                        results_folder_logreg) 
-            # Append results to list 
-            logreg_res.append(logreg_res_fmt)
-            logreg_metric, axs[i, 0] = get_clf_metrics(y_test, y_proba_logreg, 
-                                                    f"{subcohort.replace('subcohort_', '')} LogReg", 
-                                                    axs[i, 0])
-            logreg_metrics.append(logreg_metric)
-            
-            # XGBoost model and assess xgboost performance
-            clf, y_proba_xgb = create_mdl_xgb(X_train, y_train, X_test, imb_data = False)
-            assess_clf_perf_xgb(clf, X_test, y_test, 
-                                f'{results_folder_xgb}/{subcohort}/',
-                                features,
-                                feature_rename_map = None,
-                                labels = ['Negative (0)', 'Positive (1)'])
-            # append xgb results to list
-            xgb_metric, axs[i, 1] = get_clf_metrics(y_test, y_proba_xgb, 
-                                    f"{subcohort.replace('subcohort_', '')} XGBoost", 
-                                    axs[i, 1])
-            xgb_metrics.append(xgb_metric)
-            
-        # comparison across subcohorts    
-        create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, results_folder_logreg)
-        create_metric_comp(logreg_metrics, xgb_metrics, subcohort_cols, results_folder)
-        # Save the figure
-        fig.savefig(f'{results_folder}/static_mdl_proba_comp.png', dpi = 300)
-    
+        create_metric_comp(logreg_metrics, logreg_metrics_base,
+                           xgb_metrics, xgb_metrics_base, 
+                           subcohort_cols, results_folder)
             
         sys.exit()
 
