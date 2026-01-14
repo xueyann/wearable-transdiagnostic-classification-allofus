@@ -1,6 +1,7 @@
 
 survey_df_path_pattern: 'data/01_raw/survey_df_20250514_{i}.csv'
 savepath: 'data/02_intermediate/survey_df_20260113.csv'
+savepath_cat: 'data/02_intermediate/survey_df_no_onehot_20260113.csv'
 ordinal_encoding:
     # alcohol
     # 'Alcohol: Alcohol Participant':
@@ -132,11 +133,10 @@ keep_cols: ['binge_drinking_freq_Daily',
             'binge_drinking_freq_Less Than Monthly',
             # 'binge_drinking_freq_Never In Last Year',
             'binge_drinking_freq_Unknown',
-
             'alcohol_drinking_Yes',
             # 'alcohol_drinking_No',
             'alcohol_drinking_Unknown',
-             
+
             # 'past_year_drink_freq_Never',
             'past_year_drink_freq_Monthly Or Less',
             'past_year_drink_freq_2 to 4 Per Month',
@@ -166,4 +166,15 @@ keep_cols: ['binge_drinking_freq_Daily',
             'smoke_years', 
             'smoke_start_age', 
             'other_smoking']
+
+keep_cols_cat: ['binge_drinking_freq',
+              'alcohol_drinking',
+              'past_year_drink_freq',
+              'daily_drink_count',        
+              'ever_smoker',
+              'smoke_freq', 
+              'daily_cig_count', 
+              'smoke_years', 
+              'smoke_start_age', 
+              'other_smoking']
     

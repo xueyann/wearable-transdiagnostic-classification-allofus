@@ -68,14 +68,6 @@ def process_survey_df(df, config):
     # # assign binge drinking freq to 0 if past year drinking frequency is 0
     # df.loc[df['past_year_drink_freq']==0, 'binge_drinking_freq'] = 0
 
-    # # one hot encoding for some variables
-    # print(df[config['one_hot_encode']].isna().any(axis=1))
-    # print(df.loc[df[config['one_hot_encode']].isna().any(axis=1)])
-    for col in config['one_hot_encode']:
-        df[col] = df[col].fillna('Unknown')
-    df = pd.get_dummies(df, columns = config['one_hot_encode'])
-
-
     ######## clean up smoking ########
     df.loc[df['smoke_quit_age']=='Unknown', 'smoke_quit_age'] = np.nan
     df.loc[df['smoke_start_age']=='Unknown', 'smoke_start_age'] = np.nan
@@ -96,11 +88,25 @@ def process_survey_df(df, config):
     # choose the longer one for smoke years
     df['smoke_years'] = df[['smoke_years', 'smoke_years_cal']].astype(int).max(axis=1)
 
+
+
+    # save a copy for no one hot encode --> descriptives
+    df_cat = df.copy()
+    df_cat = df_cat[config['keep_cols_cat']]
+    df_cat = df_cat.reset_index()
+
+    # # one hot encoding for some variables
+    # print(df[config['one_hot_encode']].isna().any(axis=1))
+    # print(df.loc[df[config['one_hot_encode']].isna().any(axis=1)])
+    for col in config['one_hot_encode']:
+        df[col] = df[col].fillna('Unknown')
+    df = pd.get_dummies(df, columns = config['one_hot_encode'])
+
     df = df[config['keep_cols']]
     # print(df.loc[(df=='Unknown').any(axis=1)])
     df = df.reset_index()
 
-    return df
+    return df, df_cat
 
 # def handle_missing(df):
 #     # create a missing flag and convert unknowns to 0 
@@ -124,14 +130,19 @@ def process_survey_df(df, config):
 def main():
     config = yaml.safe_load(open('conf/dp_survey.yaml'))
     processed_df = []
+    processed_df_cat = []
     i = 0
     while os.path.exists(config['survey_df_path_pattern'].format(i=i)):
         df = pd.read_csv(config['survey_df_path_pattern'].format(i=i))
-        df = process_survey_df(df, config)
+        df, df_cat = process_survey_df(df, config)
         processed_df.append(df)
+        processed_df_cat.append(df_cat)
         i += 1
     processed_df = pd.concat(processed_df)
     processed_df.to_csv(config['savepath'], index=False)
+    processed_df_cat = pd.concat(processed_df_cat)
+    processed_df_cat.to_csv(config['savepath_cat'], index=False)
+
 
 if __name__ == '__main__':
     main()

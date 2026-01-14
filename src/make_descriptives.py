@@ -90,7 +90,7 @@ def main():
     latex = latex.replace(r"\begin{longtable}{lllllllllll}", 
                           r"""\begin{landscape}
                                 \footnotesize
-                                \begin{longtable}{>{\raggedright\arraybackslash}p{2.1cm}l>{\setstretch{0.9}\raggedright\arraybackslash}m{2.6cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}p{1.95cm}}""")
+                                \begin{longtable}{{>{\setstretch{0.9}\raggedright\arraybackslash}p{2.1cm}l>{\setstretch{0.9}\raggedright\arraybackslash}m{2.6cm}>{\setstretch{0.9}}p{1.95cm}>{\setstretch{0.9}}p{1.95cm}>{\setstretch{0.9}}p{1.95cm}>{\setstretch{0.9}}p{1.95cm}>{\setstretch{0.9}}p{1.95cm}>{\setstretch{0.9}}p{1.95cm}>{\setstretch{0.9}}p{1.95cm}>{\setstretch{0.9}}p{1.95cm}}}""")
     latex = latex.replace(r""" &  &  & Control & CVD & Diabetes & OSA & MDD & Anxiety & Bipolar & ADHD \\""", 
                           r"""  &  &  & Control & CVD & Diabetes & OSA & MDD & Anxiety & Bipolar & ADHD \\
                                 \cmidrule(rl){4-4}

@@ -91,29 +91,42 @@ total_cohort:
   excl_drug_savepath: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
   fitbit_summary_data: 'data/02_intermediate/fitbit_data_summary/'
   min_streak_length: 21
-  cohort_save_path: 'data/02_intermediate/study_cohorts_20251201/study_cohort_20251201.csv'
-  streak_save_path: 'data/02_intermediate/study_cohorts_20251201/streaks_20251201.csv'
-
+  cohort_save_path: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
+  streak_save_path: 'data/02_intermediate/study_cohorts_20251222/streaks_20251222.csv'
   physical_measurement_df: 'data/02_intermediate/physical_measurement_df_20250617.csv'
   # Features
-  person_features: ['age', 'sex_male', 'race_white']
+  person_features: ['age', 'sex_male', 'race_nonwhite']
   physical_measurement_features: [
                                   'waist_circum',
                                   'hip_circum',
                                   # 'bp_systolic',
                                   # 'bp_diastolic',
                                   'BMI']
-  time_series_features: ['fat_burn_min', 'cardio_min', 'peak_min',
-                        'out_of_range_min', 'activity_calories', 
-                        # 'calories_bmr', 
+  time_series_features: ['fat_burn_min', 
+                        'cardio_min', 
+                        'peak_min',
+                        'out_of_range_min', 
+                        'activity_calories', 
+                        'calories_bmr', 
                         'calories_out',
                         # 'elevation', 
                         'fairly_active_minutes', 
                         # 'floors',
-                        'lightly_active_minutes', 'marginal_calories', 'sedentary_minutes',
-                        'steps', 'very_active_minutes', 'minute_in_bed',
-                        'minute_asleep', 'minute_after_wakeup', 'minute_awake', 'minute_deep',
-                        'minute_light', 'minute_rem', 'minute_wake', 'nap_min']
+                        'lightly_active_minutes', 
+                        'marginal_calories', 
+                        'sedentary_minutes',
+                        'steps', 
+                        'very_active_minutes', 
+                        'minute_in_bed',
+                        'minute_asleep', 
+                        'sleep_efficiency',
+                        'minute_after_wakeup', 
+                        # 'minute_awake', 
+                        'minute_deep',
+                        'minute_light', 
+                        'minute_rem', 
+                        'minute_wake', 
+                        'nap_min']
   get_additional_sleep_feat: False
   additional_sleep_features_path_pattern: 'data/02_intermediate/sleep_features_v2/sleep_feature_df_20250623_{i}.csv'
   additional_sleep_features: ['sleep_efficiency_percent', 
@@ -123,7 +136,7 @@ total_cohort:
                                     'rem_latency_min', 
                                     'rem_fragmentation',
                                     'sleep_onset_adjusted']
-  time_series_features_savepath: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features.csv'
-  time_series_features_sumstats_savepath: 'data/02_intermediate/study_cohorts_20251201/fitbit_time_series_features_sumstats.csv'
+  time_series_features_savepath: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features.csv'
+  time_series_features_sumstats_savepath: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
   sleep_onset_center: 22
-  attrition_savepath: 'data/02_intermediate/study_cohorts_20251201/attrition.csv'
+  attrition_savepath: 'data/02_intermediate/study_cohorts_20251222/attrition.csv'

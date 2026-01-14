@@ -41,7 +41,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
 
-from lib.model import bootstrap, paired_bootstrap_fmt
+from lib.model import bootstrap_fmt, paired_bootstrap_fmt
 
 
 def get_net_benefit(y_true, y_prob, threshold):
@@ -93,7 +93,7 @@ def plot_calibration_curve(y_true, y_prob_dict, ax, title = "Calibration Curve")
     ax.set_xlabel("Predicted probability")
     ax.set_ylabel("Observed event rate")
     ax.legend()
-    ax.set_title(f"Calibration Curve: {mdl_name}")
+    ax.set_title(title)
 
     return ax 
 
@@ -131,12 +131,12 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1, threshold = 0.5)
         'F1 Score': f1_score_modified,
         'ROC AUC Score': roc_auc_score,
         'Brier Score': brier_score_loss,
-        'Scaled Brier Score': scaled_brier_score
+        'Brier Skill Score (BSS)': scaled_brier_score
     }
 
     # Get classification metrics
-    perf_dict_base = {metric: func(y_true, y_prob_base) for metric, func in metric_dict.items()}
-    perf_dict = {metric: func(y_true, y_prob) for metric, func in metric_dict.items()}
+    perf_dict_base = {metric: bootstrap_fmt(y_true, y_prob_base, func) for metric, func in metric_dict.items()}
+    perf_dict = {metric: bootstrap_fmt(y_true, y_prob, func) for metric, func in metric_dict.items()}
     perf_dict_diff = {metric: paired_bootstrap_fmt(y_true, y_prob_base, y_prob, func) for metric, func in metric_dict.items()}
 
     # convert to pandas series
@@ -676,8 +676,8 @@ def create_logreg_and_xgb_mdl_comp(cohort,
         logreg_metrics = [] # for aggregating logreg metrics
         xgb_metrics = [] # for aggregating xgb metrics
         # Initialise figure to plot everything on the same chart
-        fig1, axs1 = plt.subplots(len(subcohort_cols), 2, figsize=(12, 36))
-        fig2, axs2 = plt.subplots(len(subcohort_cols), 2, figsize=(12, 36))
+        fig1, axs1 = plt.subplots(len(subcohort_cols), 2, figsize=(8, 22))
+        fig2, axs2 = plt.subplots(len(subcohort_cols), 2, figsize=(8, 22))
 
         for subcohort in subcohort_cols:
             print(subcohort)
@@ -766,6 +766,8 @@ def create_logreg_and_xgb_mdl_comp(cohort,
         ### comparison across subcohorts - LogReg coefficients
         create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, results_folder_logreg)
         ### Save comparison figure
+        fig1.tight_layout()
+        fig2.tight_layout()
         fig1.savefig(fig1_path, dpi = 300)
         fig2.savefig(fig2_path, dpi = 300)
 
@@ -843,8 +845,8 @@ def main():
                                                                     results_folder_xgb,
                                                                     results_folder_logreg_base,
                                                                     results_folder_xgb_base,
-                                                                    f'{results_folder}/static_mdl_base_proba_comp.png',
-                                                                    f'{results_folder}/static_mdl_base_calibration_curve.png',
+                                                                    f'{results_folder}/static_mdl_proba_comp.svg',
+                                                                    f'{results_folder}/static_mdl_calibration_curve.svg',
                                                                     test_size = 0.3)
 
         create_metric_comp(logreg_metrics,
