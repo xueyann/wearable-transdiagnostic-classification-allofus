@@ -3,7 +3,7 @@ sys.path.append('./')
 import os
 import re
 from pathlib import Path
-from lib.descriptives import generate_descriptives_split
+from lib.descriptives import generate_descriptives_split, generate_descriptive_and_comparison
 import pandas as pd
 import numpy as np
 import yaml
@@ -49,6 +49,9 @@ def main():
         .merge(person_df[['person_id'] + original_demo_features])\
         .merge(survey_df[['person_id'] + survey_features])\
         .merge(sumstats_df[['person_id'] + sumstats_features])
+
+    
+
 
     # ### map some features back to the categories ###
     # for feat, value_map in config['feature_value_map'].items():
@@ -106,11 +109,49 @@ def main():
                             \end{landscape}""")
     with open(config['output'], 'w') as f:
         f.write(latex)
-        f.write
 
 
-    #### descriptive of medications ####
+
+    #### Compare control cohort with a clean version that has no medication at all ####    
+    # create a clean control cohort with no 
+    df_control = df.loc[(df[subcohort_cols].isna().all(axis=1))]
+    df_control_clean = df.loc[(df[subcohort_cols].isna().all(axis=1)) & 
+                            (~df['person_id'].isin(drug_df['person_id']))]
+
+    # TODO compare between the two cohorts
+    comp_with_clean = generate_descriptive_and_comparison(df_control, df_control_clean,
+                                        cohort_names = ("Control", "Control (Clean)"),
+                                        continuous_vars = continuous_vars,
+                                        categorical_vars = categorical_vars,
+                                        var_map = feature_rename_map)
+
+    # comp_with_clean.to_csv('results/temp/comp_with_clean.csv', index=True)
+    
+    comp_latex = comp_with_clean.to_latex(None,
+                                        index=True,
+                                        escape = True, 
+                                        float_format="%.2f",
+                                        bold_rows = True,
+                                        multicolumn_format = 'c',
+                                        column_format = r""">{\setstretch{0.9}\raggedright\arraybackslash}p{2.1cm}
+                                                                >{\setstretch{0.9}\raggedright\arraybackslash}m{2.6cm}
+                                                                >{\setstretch{0.9}}p{1.95cm}
+                                                                >{\setstretch{0.9}}p{1.95cm}
+                                                                >{\setstretch{0.9}}p{1.95cm}
+                                                                >{\setstretch{0.9}}p{1.95cm}
+                                                                >{\setstretch{0.9}}p{1.95cm}
+                                                                >{\setstretch{0.9}}p{1.95cm}""",
+                                        longtable = True)
+    # formatting: multirow wrap text
+    comp_latex = re.sub(r'\\multirow\[t\]\{(\d+)\}\{\*\}',
+                    r'\\multirow[t]{\1}{2.1cm}',
+                    comp_latex)
+    comp_latex = comp_latex.replace(r'cline{2-7}', r'cline{2-5}')
+    comp_latex = comp_latex.replace(r'\$<0.001*\$', r'$<0.001*$')
+    with open(config['output_clean_control'], 'w') as f:
+        f.write(r'{\footnotesize' + comp_latex + '}')
     return
+
 
 
 if __name__ == '__main__':

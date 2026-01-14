@@ -153,3 +153,11 @@ def make_tracker():
         track_len.len_dict = len_dict
         return inner
     return track_len, len_dict
+
+def format_p(p, alpha = 0.05):
+    if p < 0.001:
+        return r"$<0.001*$"
+    elif p <= alpha:
+        return f"{p:.3f}*"
+    else:
+        return f"{p:.3f}"

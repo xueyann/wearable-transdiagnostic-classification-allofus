@@ -7,8 +7,11 @@ from scipy.stats import (
     ttest_ind,
     mannwhitneyu,
     ks_2samp,
-    iqr
+    iqr,
+    chi2_contingency,
+    rankdata
 )
+from lib.helpers import format_p
 
 def compute_cohens_d(x1, x2):
     """
@@ -19,6 +22,39 @@ def compute_cohens_d(x1, x2):
     if pooled_std == 0:
         return np.nan
     return (np.mean(x1) - np.mean(x2)) / pooled_std
+
+def compute_cramers_v(confusion_matrix):
+    chi2 = chi2_contingency(confusion_matrix, correction=False)[0]
+    n = confusion_matrix.sum().sum()
+    r, k = confusion_matrix.shape
+    return np.sqrt(chi2 / (n * (min(r, k) - 1)))
+
+def compare_continuous(df1, df2, var, test="t"):
+    x, y = df1[var], df2[var]
+
+    # default: use t test, recommended for large sample size instead of testing for normality
+    if test == "t":
+        stat, p = ttest_ind(x, y, nan_policy="omit", equal_var=False)
+        effect = compute_cohens_d(x, y)
+        effect_label = "Cohen's d"
+    else:
+        stat, p = mannwhitneyu(x.dropna(), y.dropna(), alternative="two-sided")
+        effect = rankdata(np.concatenate([x, y]))[:len(x)].mean()
+        effect_label = "Rank-biserial r"
+
+    return p, effect, effect_label
+
+def compare_categorical(df1, df2, var):
+    ct = pd.crosstab(
+        pd.concat([df1[var], df2[var]]),
+        ['Cohort1'] * len(df1) + ['Cohort2'] * len(df2)
+    )
+
+    chi2, p, _, expected = chi2_contingency(ct)
+    effect = compute_cramers_v(ct)
+
+    return p, effect
+
 
 def compare_two_cohorts_side_by_side(df1, df2, features, 
                                      label1='group1', 
@@ -175,12 +211,15 @@ def generate_descriptives_split(df,
     categorical_df.insert(1, 'Measure', 'N (%)')
 
     ### Drug descriptive ###
-    drug_desc = get_drug_descriptives(drug_df, subcohort_name, drug_rename_map).reset_index(names = 'Value')
-    drug_desc.insert(1, 'Measure', 'N (%)')
-    drug_desc.insert(1, 'Variable', 'Medication')
+    if drug_df is not None:
+        drug_desc = get_drug_descriptives(drug_df, subcohort_name, drug_rename_map).reset_index(names = 'Value')
+        drug_desc.insert(1, 'Measure', 'N (%)')
+        drug_desc.insert(1, 'Variable', 'Medication')
 
-    # concatenate continuous and categorical
-    final_df = pd.concat([continuous_df, categorical_df, drug_desc])
+        # concatenate continuous and categorical
+        final_df = pd.concat([continuous_df, categorical_df, drug_desc])
+    else:
+        final_df = pd.concat([continuous_df, categorical_df])
     # Map variable name if any
     # filter variable map
     var_map = {k: v for k, v in var_map.items() if k in final_df['Variable'].unique()}
@@ -191,3 +230,51 @@ def generate_descriptives_split(df,
 
     return final_df
 
+
+
+def generate_descriptive_and_comparison(
+    df1, df2,
+    cohort_names=("Control", "Control (Clean)"),
+    continuous_vars=None,
+    categorical_vars=None,
+    var_map=None
+):
+    # Descriptives
+    t1 = generate_descriptives_split(
+        df1, None, cohort_names[0],
+        continuous_vars, categorical_vars,
+        var_map
+    )
+
+    t2 = generate_descriptives_split(
+        df2, None, cohort_names[1],
+        continuous_vars, categorical_vars,
+        var_map
+    )
+
+    table = t1.join(t2, how="outer")
+
+    # Add stats columns
+    table["p-value"] = ""
+    table["Effect size"] = ""
+
+    # Continuous
+    for var in continuous_vars:
+        p, eff, label = compare_continuous(df1, df2, var)
+        idx = (var_map.get(var, var), "Mean (SD)", "")
+        table.loc[idx, "p-value"] = format_p(p)
+        table.loc[idx, "Effect size"] = f"{eff:.2f}"
+
+    # Categorical
+    for var in categorical_vars:
+        p, eff = compare_categorical(df1, df2, var)
+        idx = (var_map.get(var, var), "N (%)")
+        # get the index for mid row
+        group = table.loc[idx]           # select the group
+        mid_iloc = int(len(group)/2)
+        mid_row_index = (var_map.get(var, var), "N (%)", group.iloc[mid_iloc].name)  # get actual row index
+        # assign to original DataFrame
+        table.loc[mid_row_index, 'p-value'] = format_p(p)
+        table.loc[mid_row_index, 'Effect size'] = f"{eff:.2f}"
+
+    return table

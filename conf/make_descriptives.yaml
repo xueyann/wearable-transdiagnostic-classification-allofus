@@ -5,6 +5,9 @@ time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_s
 drug_df: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
 output: 'results/base_mdl/descriptives_20260114.tex'
 
+clean_control_cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_clean_control_20251211.csv'
+output_clean_control: 'results/base_mdl/clean_control_comp_20260114.tex'
+
 subcohort_cols: ['subcohort_CVD', 
                   'subcohort_Diabetes', 
                   'subcohort_OSA', 
