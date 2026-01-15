@@ -252,7 +252,7 @@ def generate_descriptive_and_comparison(
         var_map
     )
 
-    table = t1.join(t2, how="outer")
+    table = t1.join(t2, how="left")
 
     # Add stats columns
     table["p-value"] = ""

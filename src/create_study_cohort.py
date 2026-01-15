@@ -126,8 +126,8 @@ def get_static_features(cohort, # Dataframe, should have index date
 
     # Process the categorical variables so that they are numeric 
     # Race
-    person_df.loc[person_df['race']=='White', 'race_white'] = 1
-    person_df['race_white'] = person_df['race_white'].fillna(0)
+    person_df.loc[person_df['race']!='White', 'race_nonwhite'] = 1
+    person_df['race_nonwhite'] = person_df['race_nonwhite'].fillna(0)
     # Sex at birth
     person_df.loc[person_df['sex_at_birth']=='Male', 'sex_male'] = 1
     person_df['sex_male'] = person_df['sex_male'].fillna(0)
@@ -461,6 +461,7 @@ def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_de
                            min_streak_length = 21, streak_save_path = None):
     # read fitbit summary data and formatting
     df = pd.read_parquet(fpath)
+    df['sleep_efficiency'] = df['minute_asleep']/df['minute_in_bed']
     attrition['Having fitbit data'] = df['person_id'].nunique()
     # filter for df in person df
     df = df.loc[df['person_id'].isin(person_df['person_id'])]
@@ -522,7 +523,7 @@ def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_de
         streaks = streaks.drop(columns = ['osa_device_date'])
         attrition['sleep streaks before prescriptions of OSA devices'] = streaks['person_id'].nunique()
         print(attrition)
-
+ 
     # Filter df by streaks
     
     df = filter_sleep_feat_by_streak_memory_efficient(df, streaks, date_col = 'date')

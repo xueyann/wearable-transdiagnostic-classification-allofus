@@ -29,6 +29,7 @@ def main():
 
     ### Get all the dataframes ###
     person_df = pd.read_csv(config['person_df'])
+    person_df['ethnicity'] = person_df['ethnicity'].fillna('Unknown')
     cohort = pd.read_csv(config['cohort'])
     survey_df = pd.read_csv(config['survey_df'])
     sumstats_df = pd.read_csv(config['time_series_sumstats'])
@@ -51,8 +52,6 @@ def main():
         .merge(sumstats_df[['person_id'] + sumstats_features])
 
     
-
-
     # ### map some features back to the categories ###
     # for feat, value_map in config['feature_value_map'].items():
     #     df[feat] = df[feat].map(lambda x: value_map.get(int(x)) if not np.isnan(x) else np.nan)
@@ -84,6 +83,8 @@ def main():
                         float_format="%.2f",
                         bold_rows = True,
                         multicolumn_format = 'c',
+                        caption = 'Descriptives of demographic, lifestyle and wearable-derived features and medication across subcohorts',
+                        label = 'tab:descriptives',
                         longtable = True)
     # some manual modification of the latex file
     # specify the width of the first column so latex can wrap the text in cell
@@ -117,6 +118,8 @@ def main():
     df_control = df.loc[(df[subcohort_cols].isna().all(axis=1))]
     df_control_clean = df.loc[(df[subcohort_cols].isna().all(axis=1)) & 
                             (~df['person_id'].isin(drug_df['person_id']))]
+    
+    print(df_control.columns)
 
     # TODO compare between the two cohorts
     comp_with_clean = generate_descriptive_and_comparison(df_control, df_control_clean,
@@ -133,6 +136,8 @@ def main():
                                         float_format="%.2f",
                                         bold_rows = True,
                                         multicolumn_format = 'c',
+                                        caption = 'Comparison of demographic, lifestyle and wearable-derived features between Control and Clean Control cohort',
+                                        label = 'tab:cleancontrolcomp',
                                         column_format = r""">{\setstretch{0.9}\raggedright\arraybackslash}p{2.1cm}
                                                                 >{\setstretch{0.9}\raggedright\arraybackslash}m{2.6cm}
                                                                 >{\setstretch{0.9}}p{1.95cm}

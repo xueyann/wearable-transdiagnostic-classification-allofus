@@ -25,7 +25,7 @@ def bootstrap(y_true, y_proba, func, alpha = 0.05, n_bootstrap=1000, seed=42):
     
     scores = np.array(scores) 
 
-    ci_lower, ci_upper = np.percentile(scores, [(alpha*100)/2, 1-(alpha*100)/2])
+    ci_lower, ci_upper = np.percentile(scores, [(alpha*100)/2, 100-(alpha*100)/2])
 
     return {
         "mean": scores.mean(),
@@ -34,12 +34,17 @@ def bootstrap(y_true, y_proba, func, alpha = 0.05, n_bootstrap=1000, seed=42):
         "significant": not (ci_lower <= 0 <= ci_upper)
     }
 
+
+def bootstrap_fmt(y_true, y_proba, func, n_bootstrap=1000, seed=42):
+    res = bootstrap(y_true, y_proba, func, n_bootstrap=n_bootstrap, seed=seed)
+    return f"{res['mean']:.3f} ({res['ci_lower']:.3f} - {res['ci_upper']:.3f})"
+
 def paired_bootstrap_fmt(y_true, y_proba1, y_proba2, func, n_bootstrap=1000, seed=42):
     res = paired_bootstrap(y_true, y_proba1, y_proba2, func, n_bootstrap=n_bootstrap, seed=seed)
     return f"{res['mean']:.3f} ({res['ci_lower']:.3f} - {res['ci_upper']:.3f})"
 
 
-def paired_bootstrap(y_true, y_proba1, y_proba2, func, n_bootstrap=1000, seed=42):
+def paired_bootstrap(y_true, y_proba1, y_proba2, func, alpha = 0.05, n_bootstrap=1000, seed=42):
     """
     y_true: array of true label (binary)
     y_proba1: predicted probabilities with the first model (null model)
@@ -69,7 +74,7 @@ def paired_bootstrap(y_true, y_proba1, y_proba2, func, n_bootstrap=1000, seed=42
 
     deltas = np.array(deltas) 
 
-    ci_lower, ci_upper = np.percentile(deltas, [2.5, 97.5])
+    ci_lower, ci_upper = np.percentile(deltas, [(alpha*100)/2, 100-(alpha*100)/2])
 
     return {
         "mean": deltas.mean(),

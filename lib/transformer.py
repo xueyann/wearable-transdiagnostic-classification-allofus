@@ -248,8 +248,8 @@ def get_pred(model, clf, test_dataloader,
              device,
              with_static = False):
     
-    model = model.to('cuda')
-    clf = clf.to('cuda')
+    model = model.to(device)
+    clf = clf.to(device)
     model.eval()
     clf.eval()
     all_preds = []
