@@ -623,18 +623,31 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     
     print(df)
     df.to_csv(f'{output_folder}/static_mdl_perf.csv', index = True)
+
+    # Stack the df
+    idx_ordered = list(tuple(itertools.product(
+                            [x.replace('subcohort_', '') for x in subcohort_cols], 
+                            ['Accuracy',
+                            'Precision',
+                            'Recall',
+                            'F1 Score',
+                            'ROC AUC Score',
+                            'Brier Score',
+                            'Brier Skill Score (BSS)'])))
+    df = df.stack(level=0).swaplevel(0 , 1, axis=0).sort_index(level=0).loc[idx_ordered]
+
+    latex_str = df.to_latex(None,
+                            escape=True,
+                            float_format="%.3f",
+                            longtable = True,
+                            bold_rows = True,
+                            multicolumn_format = 'c',
+                            caption = 'Logistic regression and XGBoost model performance across subcohorts (95\% CI)',
+                            label = 'tab:clfmetrics'
+                        )
     
-    latex_str = ''
-    for subcohort in [x.replace('subcohort_', '') for x in subcohort_cols]:
-        latex_str = latex_str + df.loc[:, subcohort].to_latex(None,
-                                                        escape=True,
-                                                        float_format="%.3f",
-                                                        longtable = True,
-                                                        bold_rows = True,
-                                                        multicolumn_format = 'c',
-                                                        caption= subcohort
-                                                    )
-    
+    latex_str = r'\begin{landscape}\footnotesize' + latex_str + r'\end{landscape}'
+
     with open(f'{output_folder}/static_mdl_perf.tex', 'w') as f:
         f.write(latex_str)
 
@@ -845,8 +858,8 @@ def main():
                                                                     results_folder_xgb,
                                                                     results_folder_logreg_base,
                                                                     results_folder_xgb_base,
-                                                                    f'{results_folder}/static_mdl_proba_comp.svg',
-                                                                    f'{results_folder}/static_mdl_calibration_curve.svg',
+                                                                    f'{results_folder}/static_mdl_proba_comp.png',
+                                                                    f'{results_folder}/static_mdl_calibration_curve.png',
                                                                     test_size = 0.3)
 
         create_metric_comp(logreg_metrics,
