@@ -7,6 +7,7 @@ total_cohort:
   drug_list: 'conf/drug_list.yaml'
   prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
   icd_excl: 'conf/icd_excl.yaml'
+  streak_overlap: False
   excl_drug_classes: ['hypnotics_and_sedatives',
                         'ssri',
                         'snri',
@@ -97,8 +98,8 @@ total_cohort:
   # Features
   person_features: ['age', 'sex_male', 'race_nonwhite']
   physical_measurement_features: [
-                                  'waist_circum',
-                                  'hip_circum',
+                                  # 'waist_circum',
+                                  # 'hip_circum',
                                   # 'bp_systolic',
                                   # 'bp_diastolic',
                                   'BMI']
@@ -107,7 +108,7 @@ total_cohort:
                         'peak_min',
                         'out_of_range_min', 
                         'activity_calories', 
-                        'calories_bmr', 
+                        # 'calories_bmr', 
                         'calories_out',
                         # 'elevation', 
                         'fairly_active_minutes', 

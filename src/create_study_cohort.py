@@ -120,6 +120,8 @@ def get_static_features(cohort, # Dataframe, should have index date
 
     ######### Demographic features #########
     # Compute age using sleep data collection date as a reference
+    # make sure to drop people missing key demographic features
+    person_df = person_df.dropna(subset = ['person_id', 'date_of_birth', 'race', 'sex_at_birth'])
     person_df = person_df.merge(cohort[['person_id', 'index_date']])
     person_df['age'] = ((pd.to_datetime(person_df['index_date']) - \
                          pd.to_datetime(person_df['date_of_birth'].astype(str).str[0:10])).dt.days/365).astype(int)
@@ -143,9 +145,11 @@ def get_static_features(cohort, # Dataframe, should have index date
                                 physical_measurement_df[['person_id', 'diff']].groupby('person_id', as_index=False).min(),
                                 on = ['person_id', 'diff'])
     physical_measurement_df = physical_measurement_df[['person_id'] + physical_measurement_features]
+    physical_measurement_df = physical_measurement_df.dropna()
 
     # Join everything together
-    cohort = cohort.merge(person_df).merge(physical_measurement_df, how = 'left')
+    cohort = cohort.merge(person_df).merge(physical_measurement_df, how = 'inner')
+    print(f"Total cohort size after dropping people missing key demographic variables: {cohort.shape[0]}")
 
     return cohort
 
@@ -368,13 +372,14 @@ def create_cohort(config):
     attrition['either a diagnosis assigned or in control cohort'] = cohort.shape[0]
 
     #### NOTE optional Get the streak closest to index date but after index date
-    streaks = streaks.merge(cohort[['person_id', 'index_date']])
-    streaks = streaks.loc[streaks['streak_end'] >= streaks['index_date']]
-    streaks = streaks
-    # select only people with sleep streaks after index date
-    cohort = cohort.loc[cohort['person_id'].isin(streaks['person_id'])]
-    attrition['sleep streak overlap with formal diagnosis'] = cohort.shape[0]
-    print(attrition)
+    if config['streak_overlap']:
+        streaks = streaks.merge(cohort[['person_id', 'index_date']])
+        streaks = streaks.loc[streaks['streak_end'] >= streaks['index_date']]
+        streaks = streaks
+        # select only people with sleep streaks after index date
+        cohort = cohort.loc[cohort['person_id'].isin(streaks['person_id'])]
+        attrition['sleep streak overlap with formal diagnosis'] = cohort.shape[0]
+        print(attrition)
 
     # make sure only one line per person
     assert cohort.shape[0] == cohort['person_id'].nunique()
@@ -390,6 +395,8 @@ def create_cohort(config):
                             config['person_features'],
                             pd.read_csv(config['physical_measurement_df']),
                             config['physical_measurement_features'])
+    attrition['Have all key demographic features'] = cohort.shape[0]
+    print(attrition)
     
     ######## Save cohort together with static features #######
     cohort_save_path = config['cohort_save_path']
@@ -423,6 +430,7 @@ def get_time_series_features(cohort, streaks, fitbit_summary, config):
 
     # include just time series features
     time_series_features = config['time_series_features']
+    print(fitbit_summary.columns)
     fitbit_summary = fitbit_summary[['person_id', 'date'] + time_series_features]
 
     ####### Get additional sleep features #######
