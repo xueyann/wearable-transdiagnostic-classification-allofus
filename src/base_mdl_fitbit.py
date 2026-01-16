@@ -11,6 +11,7 @@ import itertools
 import torch.nn.functional as F
 from functools import reduce
 import multiprocessing
+import re
 
 import matplotlib.pyplot as plt
 
@@ -611,16 +612,7 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
                             'XGBoost'])
     # ordering
     df = df.swaplevel(0, 1, axis=1)
-    # df = df[pd.MultiIndex.from_product(
-    #         [[x.replace('subcohort_', '') for x in subcohort_cols], 
-    #         #  ['LogReg(Base)', 
-    #         # 'LogReg(+Fitbit)',
-    #         # 'XGBoost(Base)',
-    #         # 'XGBoost(+Fitbit)']
-    #         ['LogReg', 'XGBoost'],
-    #         ['(Base)', '(+Fitbit)']
-    #         ])]
-    
+
     print(df)
     df.to_csv(f'{output_folder}/static_mdl_perf.csv', index = True)
 
@@ -651,7 +643,125 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     with open(f'{output_folder}/static_mdl_perf.tex', 'w') as f:
         f.write(latex_str)
 
+
+    ### Plotting just ROC AUC and BSS to visualise key metrics ###
+    df = df.loc[['ROC AUC Score', 'Brier Skill Score (BSS)']]\
+        .stack(level=0).swaplevel(0 , 1, axis=0).sort_index(level=0).unstack(level=1)\
+        .map(lambda x: list(map(float, re.findall(r"-?\d*\.?\d+", x)))) # separate out confidence intervals
+    
+    plot_key_clf_metrics(df, [x.replace('subcohort_', '') for x in subcohort_cols],
+                         f'{output_folder}/static_mdl_perf_plot.png')
+    
     return
+
+
+
+def plot_key_clf_metrics(df, subcohorts, savepath):
+    # ---- plotting setup ----
+    subcohorts = subcohorts[::-1]  # reverse so first is on top
+    df = df.loc[subcohorts]
+    models = [('LogReg', 'Base'),
+            ('LogReg', '+Fitbit'),
+            ('XGBoost', 'Base'),
+            ('XGBoost', '+Fitbit')]
+
+    y_base = np.arange(len(subcohorts))
+    offset = 0.2  # vertical offset between models
+
+    model_offsets = {
+        ('LogReg', 'Base'): -1.5*offset,
+        ('LogReg', '+Fitbit'): -offset/2,
+        ('XGBoost', 'Base'): offset/2,
+        ('XGBoost', '+Fitbit'): 1.5*offset
+    }
+
+    model_formats = {
+        ('LogReg', 'Base'): {
+            'color': "#6BAED6",
+            'fmt': 'o',
+            'alpha': 1
+        },
+        ('LogReg', '+Fitbit'): {
+            'color': "tab:blue",
+            'fmt': 'o',
+            'alpha': 1
+        },
+        ('XGBoost', 'Base'): {
+            'color': "#FDAE6B",
+            'fmt': 'o',
+            'alpha': 1
+        },
+        ('XGBoost', '+Fitbit'): {
+            'color': "tab:orange",
+            'fmt': 'o',
+            'alpha': 1
+        },
+    }
+
+    fig, axs = plt.subplots(
+        ncols=2,
+        sharey=True,
+        figsize=(15, 9),
+        gridspec_kw={"wspace": 0.25}
+    )
+
+
+    # ---- Plotting for ROC AUC and BSS ----
+    i = 0
+    for metric in ['ROC AUC Score', 'Brier Skill Score (BSS)']:
+        for model in models:
+            y = y_base + model_offsets[model]
+
+            scores = np.array([x[0] for x in df[model][metric]])
+            ci_lower = np.array([x[1] for x in df[model][metric]])
+            ci_higher = np.array([x[2] for x in df[model][metric]])
+
+            axs[i].errorbar(
+                scores,
+                y,
+                xerr=[
+                    scores - ci_lower,
+                    ci_higher - scores,
+                ],
+                capsize=3,
+                label=model,
+                **model_formats[model]
+            )
+            pad = 0.005
+
+            text_labels = [f"{float(x[0]):.2f} ({float(x[1]):.2f} - {float(x[2]):.2f})" for x in df[model][metric]]
+            for x_pos, y_pos, text_label in zip(ci_higher + pad, y, text_labels):
+                axs[i].text(
+                    x_pos,
+                    y_pos,
+                    text_label,
+                    va="center",
+                    ha="left",
+                    fontsize=9
+                )
+
+        # axs[i].axvline(0.0, linestyle="--", linewidth=1)
+        axs[i].set_xlabel(metric)
+        axs[i].set_title(metric, fontsize = 15)
+
+        i += 1
+
+    # ---- shared y-axis ----
+    axs[0].set_yticks(y_base)
+    axs[0].set_yticklabels(subcohorts)
+
+    # ---- legend & cleanup ----
+    axs[0].legend(frameon=False, title="Model")
+
+    for ax in axs:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    fig.tight_layout()
+    fig.savefig(savepath, dpi = 300)
+
+    return
+
 
 def create_logreg_and_xgb_mdl_comp(cohort, 
                                     survey_df, 
