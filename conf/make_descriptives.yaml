@@ -4,6 +4,7 @@ survey_df: 'data/02_intermediate/survey_df_no_onehot_20260113.csv'
 time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
 drug_df: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
 output: 'results/base_mdl/descriptives_20260114.tex'
+output_concise: 'results/base_mdl/descriptives_concise_20260116.tex'
 
 clean_control_cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_clean_control_20251211.csv'
 output_clean_control: 'results/base_mdl/clean_control_comp_20260114.tex'
@@ -175,3 +176,14 @@ drug_class_rename_map:
   sympathomimetics: 'Sympathomimetics'
   thyroid_hormones: 'Thyroid hormones'
   typical_antipsychotics: 'Typical antipsychotics'
+
+
+concise_features: [
+        ['Age', 'Median (IQR)', ''], 
+        ['Sex at Birth', 'N (%)', 'Female'], 
+        ['Race', 'N (%)', 'White'],
+        ['Ethnicity', 'N (%)', 'Hispanic or Latino'],
+        ['BMI', 'Median (IQR)', ''],
+        ['Alcohol consumption', 'N (%)', 'Yes'],
+        ['Ever smoked', 'N (%)', 'Yes']
+      ]

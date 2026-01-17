@@ -89,7 +89,9 @@ def process_survey_df(df, config):
     df['smoke_years'] = df[['smoke_years', 'smoke_years_cal']].astype(int).max(axis=1)
 
 
-
+    # Fill na
+    cat_cols_renamed = [config['rename_map'][x] for x in config['categorical_vars']]
+    df[cat_cols_renamed] = df[cat_cols_renamed].fillna("Unknown")
     # save a copy for no one hot encode --> descriptives
     df_cat = df.copy()
     df_cat = df_cat[config['keep_cols_cat']]

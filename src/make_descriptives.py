@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 import yaml
 from functools import reduce
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def main():
@@ -29,6 +31,7 @@ def main():
 
     ### Get all the dataframes ###
     person_df = pd.read_csv(config['person_df'])
+    person_df['race'] = person_df['race'].fillna('Unknown')
     person_df['ethnicity'] = person_df['ethnicity'].fillna('Unknown')
     cohort = pd.read_csv(config['cohort'])
     survey_df = pd.read_csv(config['survey_df'])
@@ -47,9 +50,17 @@ def main():
 
     ### Merge all variables into a long df ###
     df = cohort[['person_id'] + subcohort_cols + static_features]\
-        .merge(person_df[['person_id'] + original_demo_features])\
-        .merge(survey_df[['person_id'] + survey_features])\
-        .merge(sumstats_df[['person_id'] + sumstats_features])
+        .merge(person_df[['person_id'] + original_demo_features], on = 'person_id')\
+        .merge(survey_df[['person_id'] + survey_features], on = 'person_id')\
+        .merge(sumstats_df[['person_id'] + sumstats_features], on = 'person_id')
+        # .dropna(subset = original_demo_features)
+    df = df.dropna(subset = 'sex_at_birth')
+    
+    # print(df.loc[df[static_features+original_demo_features].isna().any(axis=1), ['person_id'] + static_features+original_demo_features])
+    # print(df.loc[df['sex_at_birth'].isna()].shape[0])
+    # print(person_df.loc[person_df['person_id'].isin(df.loc[df['sex_at_birth'].isna(), 'person_id'])])
+    # print(df.shape[0])
+    # sys.exit()
 
     
     # ### map some features back to the categories ###
@@ -72,7 +83,7 @@ def main():
                                                 categorical_vars = categorical_vars, 
                                                 var_map = feature_rename_map,
                                                 drug_rename_map = drug_class_rename_map))
-        desc_df = reduce(lambda x, y: x.join(y), desc)
+    desc_df = reduce(lambda x, y: x.join(y), desc)
 
     # Make sure directory exists
     os.makedirs(os.path.dirname(Path(config['output'])), exist_ok = True)
@@ -111,15 +122,50 @@ def main():
     with open(config['output'], 'w') as f:
         f.write(latex)
 
+    ###################################################################################
+    #### Concise set of descriptives ####   
+    ###################################################################################
+    concise_features = [tuple(x) for x in config['concise_features']]
+    # remove the IQR for medians
+    median_features = [tuple(x) for x in config['concise_features'] if 'Median (IQR)' in x]
+    # desc_df.to_csv('results/temp/desc.csv', index=True)
+    concise_df = desc_df.loc[concise_features].copy()
+    concise_df.loc[median_features] = concise_df.loc[median_features]\
+                                    .map(lambda x: float(re.sub(r"\([^)]*\)", "", x)))
+    # remove IQR from index
+    concise_df.index = pd.MultiIndex.from_tuples([tuple({'Median (IQR)': 'Median'}.get(x, x) for x in tup) \
+                                                for tup in config['concise_features']])
+    print(concise_df)
+    
+    concise_latex = concise_df.to_latex(None,
+            index=True,
+            escape = True, 
+            float_format="%.2f",
+            bold_rows = True,
+            multicolumn_format = 'c',
+            caption = 'Descriptives of key demographic and lifestyle features across subcohorts',
+            label = 'tab:concise_descriptives',
+            column_format = r""">{\setstretch{0.9}\raggedright\arraybackslash}p{1.5cm}
+            >{\setstretch{0.9}\raggedright\arraybackslash}m{1.5cm}
+            >{\setstretch{0.9}\raggedright\arraybackslash}p{1.5cm}
+            >{\setstretch{0.9}}p{1.3cm}
+            >{\setstretch{0.9}}p{1.3cm}
+            >{\setstretch{0.9}}p{1.3cm}
+            >{\setstretch{0.9}}p{1.3cm}
+            >{\setstretch{0.9}}p{1.3cm}
+            >{\setstretch{0.9}}p{1.3cm}
+            >{\setstretch{0.9}}p{1.3cm}""",
+            longtable = True)
+    with open(config['output_concise'], 'w') as f:
+        f.write(r'{\footnotesize' + concise_latex + '}')
 
-
-    #### Compare control cohort with a clean version that has no medication at all ####    
+    ###################################################################################
+    #### Compare control cohort with a clean version that has no medication at all ####   
+    ###################################################################################
     # create a clean control cohort with no 
     df_control = df.loc[(df[subcohort_cols].isna().all(axis=1))]
     df_control_clean = df.loc[(df[subcohort_cols].isna().all(axis=1)) & 
                             (~df['person_id'].isin(drug_df['person_id']))]
-    
-    print(df_control.columns)
 
     # TODO compare between the two cohorts
     comp_with_clean = generate_descriptive_and_comparison(df_control, df_control_clean,
@@ -140,7 +186,7 @@ def main():
                                         label = 'tab:cleancontrolcomp',
                                         column_format = r""">{\setstretch{0.9}\raggedright\arraybackslash}p{2.1cm}
                                                                 >{\setstretch{0.9}\raggedright\arraybackslash}m{2.6cm}
-                                                                >{\setstretch{0.9}}p{1.95cm}
+                                                                >{\setstretch{0.9}\raggedright\arraybackslash}p{1.95cm}
                                                                 >{\setstretch{0.9}}p{1.95cm}
                                                                 >{\setstretch{0.9}}p{1.95cm}
                                                                 >{\setstretch{0.9}}p{1.95cm}

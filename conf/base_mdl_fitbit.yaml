@@ -58,7 +58,7 @@ time_series_features: ['fat_burn_min',
                         'cardio_min', 
                         'peak_min',
                         'out_of_range_min', 
-                        'activity_calories', 
+                        # 'activity_calories', 
                         # 'calories_bmr', 
                         'calories_out',
                         # 'elevation', 
@@ -66,7 +66,7 @@ time_series_features: ['fat_burn_min',
                         # 'floors',
                         'lightly_active_minutes', 
                         'marginal_calories', 
-                        'sedentary_minutes',
+                        # 'sedentary_minutes',
                         'steps', 
                         'very_active_minutes', 
                         'minute_in_bed',
@@ -79,7 +79,7 @@ time_series_features: ['fat_burn_min',
                         'minute_rem', 
                         'minute_wake', 
                         'nap_min']
-results_folder: 'results/base_mdl_20260108/'
+results_folder: 'results/base_mdl_20260117/'
 
 excl_vars_ts: ['out_of_range_min', # we alr know this through fat burn minutes
                 'sedentary_minutes',

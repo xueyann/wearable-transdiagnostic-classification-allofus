@@ -626,9 +626,9 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
                             'ROC AUC Score',
                             'Brier Score',
                             'Brier Skill Score (BSS)'])))
-    df = df.stack(level=0).swaplevel(0 , 1, axis=0).sort_index(level=0).loc[idx_ordered]
+    df_latex = df.stack(level=0).swaplevel(0 , 1, axis=0).sort_index(level=0).loc[idx_ordered].copy()
 
-    latex_str = df.to_latex(None,
+    latex_str = df_latex.to_latex(None,
                             escape=True,
                             float_format="%.3f",
                             longtable = True,
@@ -648,6 +648,8 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     df = df.loc[['ROC AUC Score', 'Brier Skill Score (BSS)']]\
         .stack(level=0).swaplevel(0 , 1, axis=0).sort_index(level=0).unstack(level=1)\
         .map(lambda x: list(map(float, re.findall(r"-?\d*\.?\d+", x)))) # separate out confidence intervals
+    
+    print(df)
     
     plot_key_clf_metrics(df, [x.replace('subcohort_', '') for x in subcohort_cols],
                          f'{output_folder}/static_mdl_perf_plot.png')
@@ -780,6 +782,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
                                     results_folder_xgb_base,
                                     fig1_path,
                                     fig2_path,
+                                    fig3_path,
                                     test_size = 0.3):
         # get model df
         df, features = make_mdl_df_static(cohort, 
@@ -800,7 +803,10 @@ def create_logreg_and_xgb_mdl_comp(cohort,
         xgb_metrics = [] # for aggregating xgb metrics
         # Initialise figure to plot everything on the same chart
         fig1, axs1 = plt.subplots(len(subcohort_cols), 2, figsize=(8, 22))
-        fig2, axs2 = plt.subplots(len(subcohort_cols), 2, figsize=(8, 22))
+        fig2, axs2 = plt.subplots(3, 3, figsize=(12, 12))
+        fig3, axs3 = plt.subplots(3, 3, figsize=(12, 12))
+        # Keep a list to track which axes have been used to plot
+        used_indices = []
 
         for subcohort in subcohort_cols:
             print(subcohort)
@@ -881,18 +887,29 @@ def create_logreg_and_xgb_mdl_comp(cohort,
             # Plot calibration curve and decision curve
             plot_calibration_curve(y_test, {'LogReg': y_proba_logreg,
                                         'XGBoost': y_proba_xgb}, 
-                                axs2[i, 0], title = subcohort.replace('subcohort_', 'Calibration Curve: '))
+                                axs2[int(i/3), i%3], title = subcohort.replace('subcohort_', 'Calibration Curve: '))
             plot_decision_curve(y_test, {'LogReg': y_proba_logreg,
                                         'XGBoost': y_proba_xgb}, 
-                                axs2[i, 1], title = subcohort.replace('subcohort_', 'Decision Curve: '))
-            
+                                axs3[int(i/3), i%3], title = subcohort.replace('subcohort_', 'Decision Curve: '))
+            used_indices.append((int(i/3), i%3))  
+
+        # turn off the axis for unused axes
+        all_indices = list(itertools.product([0, 1, 2], [0, 1, 2]))
+        print(used_indices)
+        for idx in all_indices:
+            if not idx in used_indices:
+                axs2[idx[0], idx[1]].axis('off')
+                axs3[idx[0], idx[1]].axis('off')
+
         ### comparison across subcohorts - LogReg coefficients
         create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, results_folder_logreg)
         ### Save comparison figure
         fig1.tight_layout()
         fig2.tight_layout()
+        fig3.tight_layout()
         fig1.savefig(fig1_path, dpi = 300)
         fig2.savefig(fig2_path, dpi = 300)
+        fig3.savefig(fig3_path, dpi = 300)
 
         return logreg_metrics, xgb_metrics
 
@@ -970,6 +987,7 @@ def main():
                                                                     results_folder_xgb_base,
                                                                     f'{results_folder}/static_mdl_proba_comp.png',
                                                                     f'{results_folder}/static_mdl_calibration_curve.png',
+                                                                    f'{results_folder}/static_mdl_decision_curve.png',
                                                                     test_size = 0.3)
 
         create_metric_comp(logreg_metrics,
