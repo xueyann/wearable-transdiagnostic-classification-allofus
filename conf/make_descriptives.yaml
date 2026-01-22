@@ -1,0 +1,189 @@
+person_df: 'data/02_intermediate/person_df_20250805.csv' # for descriptives
+cohort: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
+survey_df: 'data/02_intermediate/survey_df_no_onehot_20260113.csv'
+time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
+drug_df: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
+output: 'results/base_mdl/descriptives_20260114.tex'
+output_concise: 'results/base_mdl/descriptives_concise_20260116.tex'
+
+clean_control_cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_clean_control_20251211.csv'
+output_clean_control: 'results/base_mdl/clean_control_comp_20260114.tex'
+
+subcohort_cols: ['subcohort_CVD', 
+                  'subcohort_Diabetes', 
+                  'subcohort_OSA', 
+                  'subcohort_MDD', 
+                  'subcohort_Anxiety', 
+                  'subcohort_Bipolar', 
+                  'subcohort_ADHD']
+
+original_demo_features: ['sex_at_birth', 'race', 'ethnicity']
+# features from the modelling ready df
+static_features: ['age', 
+                  'BMI']
+survey_features: ['binge_drinking_freq', 
+                  'alcohol_drinking', 
+                  'daily_drink_count',
+                  'past_year_drink_freq',
+                  'ever_smoker',
+                  'daily_cig_count', 
+                  'smoke_years', 
+                  'smoke_start_age']
+time_series_features: ['fat_burn_min', 
+                        'cardio_min', 
+                        'peak_min',
+                        'out_of_range_min', 
+                        'activity_calories', 
+                        # 'calories_bmr', 
+                        'calories_out',
+                        # 'elevation', 
+                        'fairly_active_minutes', 
+                        # 'floors',
+                        'lightly_active_minutes', 
+                        'marginal_calories', 
+                        'sedentary_minutes',
+                        'steps', 
+                        'very_active_minutes', 
+                        'minute_in_bed',
+                        'minute_asleep', 
+                        'sleep_efficiency',
+                        'minute_after_wakeup', 
+                        # 'minute_awake', 
+                        'minute_deep',
+                        'minute_light', 
+                        'minute_rem', 
+                        'minute_wake', 
+                        'nap_min']
+
+categorical_vars: {'sex_at_birth': ['Male', 'Female', 'Unknown'],
+                  'race': [
+                    'White', 'Asian', 'More than one population', 'Black or African American',
+                    'Middle Eastern or North African', 'American Indian or Alaska Native',
+                    'Native Hawaiian or Other Pacific Islander', 'Unknown'
+                  ],
+                  'ethnicity': ['Hispanic or Latino', 
+                              'Not Hispanic or Latino', 
+                              'Unknown'], 
+                  'alcohol_drinking': ['Yes', 'No', 'Unknown'], 
+                  'daily_drink_count': ['0', '1 or 2', '3 or 4', '5 or More', 'Unknown'],
+                  'past_year_drink_freq': ['Never', 'Monthly or Less', '2 to 4 Per Month', '2 to 3 Per Week', '4 or More Per Week', 'Unknown'],
+                  'binge_drinking_freq': ['Daily', 'Weekly', 'Monthly', 'Less Than Monthly', 'Never In Last Year', 'Unknown'],
+                  'ever_smoker': ['Yes', 'No', 'Unknown']
+                  }
+
+feature_value_map:
+  binge_drinking_freq:
+    0: 'never_last_year'
+    1: 'monthly_or_less'
+    2: 'monthly'
+    3: 'weekly'
+    4: 'daily'
+  past_year_drink_freq:
+    0: 'Never'
+    1: 'Monthly Or Less'
+    2: '2 to 4 Per Month'
+    3: '2 to 3 Per Week'
+    4: '4 or More Per Week'
+  'alcohol_drinking':
+    0: 'No'
+    1: 'Yes'
+  'ever_smoker':
+    0: 'No'
+    1: 'Yes'
+  'missing_flag':
+    0: 'No'
+    1: 'Yes'
+
+
+feature_rename_map: {
+      'age': 'Age',
+      'sex_at_birth': 'Sex at Birth',
+      'race': 'Race',
+      'ethnicity': 'Ethnicity',
+      'BMI': 'BMI',
+      'Medication': 'Medication',
+      'alcohol_drinking': 'Alcohol consumption',
+      'daily_drink_count': 'Daily drink count',
+      'past_year_drink_freq': 'Drinking frequency (past year)',
+      'ever_smoker': 'Ever smoked',
+      'daily_cig_count': 'Daily cigarette count',
+      'smoke_years': 'Years of smoking',
+      'smoke_start_age': 'Age started smoking',
+      'other_smoking': 'Other smoking behaviors',
+      'binge_drinking_freq': 'Binge drinking frequency',
+      # 'binge_drinking_freq_daily': 'Binge drinking frequency: Daily',
+      # 'binge_drinking_freq_monthly': 'Binge drinking frequency: Monthly',
+      # 'binge_drinking_freq_monthly_or_less': 'Monthly or less binge drinking frequency',
+      # 'binge_drinking_freq_weekly': 'Weekly binge drinking frequency',
+      'fat_burn_min_mean': 'Fat burn minutes (mean)',
+      'fat_burn_min_std': 'Fat burn minutes (STD)',
+      'cardio_min_mean': 'Cardio minutes (mean)',
+      'cardio_min_std': 'Cardio minutes (STD)',
+      'peak_min_mean': 'Peak heart rate minutes (mean)',
+      'peak_min_std': 'Peak heart rate minutes (STD)',
+      'out_of_range_min_mean': 'Out-of-range heart rate minutes (mean)',
+      'out_of_range_min_std': 'Out-of-range heart rate minutes (STD)',
+      'activity_calories_mean': 'Activity calories (mean)',
+      'activity_calories_std': 'Activity calories (STD)',
+      'calories_out_mean': 'Calories out (mean)',
+      'calories_out_std': 'Calories out (STD)',
+      'fairly_active_minutes_mean': 'Fairly active minutes (mean)',
+      'fairly_active_minutes_std': 'Fairly active minutes (STD)',
+      'lightly_active_minutes_mean': 'Lightly active minutes (mean)',
+      'lightly_active_minutes_std': 'Lightly active minutes (STD)',
+      'marginal_calories_mean': 'Marginal calories (mean)',
+      'marginal_calories_std': 'Marginal calories (STD)',
+      'sedentary_minutes_mean': 'Sedentary minutes (mean)',
+      'sedentary_minutes_std': 'Sedentary minutes (STD)',
+      'steps_mean': 'Steps (mean)',
+      'steps_std': 'Steps (STD)',
+      'very_active_minutes_mean': 'Very active minutes (mean)',
+      'very_active_minutes_std': 'Very active minutes (STD)',
+      'minute_in_bed_mean': 'Minutes in bed (mean)',
+      'minute_in_bed_std': 'Minutes in bed (STD)',
+      'minute_asleep_mean': 'Minutes asleep (mean)',
+      'minute_asleep_std': 'Minutes asleep (STD)',
+      'sleep_efficiency_mean': 'Sleep efficiency (mean)',
+      'sleep_efficiency_std': 'Sleep efficiency (STD)',
+      'minute_after_wakeup_mean': 'Minutes after wakeup (mean)',
+      'minute_after_wakeup_std': 'Minutes after wakeup (STD)',
+      'minute_deep_mean': 'Deep sleep minutes (mean)',
+      'minute_deep_std': 'Deep sleep minutes (STD)',
+      'minute_light_mean': 'Light sleep minutes (mean)',
+      'minute_light_std': 'Light sleep minutes (STD)',
+      'minute_rem_mean': 'REM sleep minutes (mean)',
+      'minute_rem_std': 'REM sleep minutes (STD)',
+      'minute_wake_mean': 'Wake minutes (mean)',
+      'minute_wake_std': 'Wake minutes (STD)',
+      'nap_min_mean': 'Nap minutes (mean)',
+      'nap_min_std': 'Nap minutes (STD)',
+      
+}
+
+
+drug_class_rename_map:
+  antiarrhythmics: 'Antiarrhythmics'
+  anticonvulsants: 'Anticonvulsants'
+  antithyroid_agents: 'Anti-thyroid agents'
+  anxiolytics: 'Anxiolytics'
+  atypical_antipsychotics: 'Atypical antipsychotics'
+  beta_blockers: 'Beta blockers'
+  hypnotics_and_sedatives: 'Hypnotics and sedatives'
+  non_dhp_calcium_channel_blockers: 'Non-DHP calcium channel blockers'
+  snri: 'Selective '
+  ssri: 'Selective serotonin reuptake inhibitors'
+  stimulants: 'Stimulants'
+  sympathomimetics: 'Sympathomimetics'
+  thyroid_hormones: 'Thyroid hormones'
+  typical_antipsychotics: 'Typical antipsychotics'
+
+
+concise_features: [
+        ['Age', 'Median (IQR)', ''], 
+        ['Sex at Birth', 'N (%)', 'Female'], 
+        ['Race', 'N (%)', 'White'],
+        ['Ethnicity', 'N (%)', 'Hispanic or Latino'],
+        ['BMI', 'Median (IQR)', ''],
+        ['Alcohol consumption', 'N (%)', 'Yes'],
+        ['Ever smoked', 'N (%)', 'Yes']
+      ]

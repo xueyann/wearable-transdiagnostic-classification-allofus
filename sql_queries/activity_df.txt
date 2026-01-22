@@ -1,0 +1,15 @@
+WITH filter_pairs AS (
+    {filter_string}
+)
+SELECT
+    ac.person_id,
+    ac.`datetime`,
+    ac.steps as steps
+FROM
+    {my_bucket}.steps_intraday ac
+JOIN 
+    filter_pairs f
+ON  
+    ac.person_id = f.person_id
+AND 
+    DATE(ac.`datetime`) = f.d

@@ -1,0 +1,213 @@
+cohort: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
+# cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_clean_control_20251211.csv'
+time_series_feature_df: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features.csv'
+time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
+survey_df: 'data/02_intermediate/survey_df_20260113.csv'
+# ordinal_var_mapping:
+# # reference group 
+#   binge_drinking_freq:
+#     # 0: 'never_last_year'
+#     1: 'monthly_or_less'
+#     2: 'monthly'
+#     3: 'weekly'
+#     4: 'daily'
+#   past_year_drink_freq:
+#     # 0: 'Never'
+#     1: 'Monthly Or Less'
+#     2: '2 to 4 Per Month'
+#     3: '2 to 3 Per Week'
+#     4: '4 or More Per Week'
+# manually specify subcohort columns because order matters
+subcohort_cols: ['subcohort_CVD', 
+                  'subcohort_Diabetes', 
+                  'subcohort_OSA', 
+                  'subcohort_MDD', 
+                  'subcohort_Anxiety', 
+                  'subcohort_Bipolar', 
+                  'subcohort_ADHD']
+static_features: ['age', 
+                  'sex_male', 
+                  'race_nonwhite',
+                  'BMI']
+survey_features: ['binge_drinking_freq_Daily',
+                  'binge_drinking_freq_Weekly',
+                  'binge_drinking_freq_Monthly',
+                  'binge_drinking_freq_Less Than Monthly',
+                  # 'alcohol_drinking_Yes',
+                  # 'alcohol_drinking_No',
+                  # 'alcohol_drinking_Unknown',
+                  # 'binge_drinking_freq_Never In Last Year',
+                  'binge_drinking_freq_Unknown',
+                  # 'daily_drink_count_0',
+                  'daily_drink_count_1 or 2',
+                  'daily_drink_count_3 or 4',
+                  'daily_drink_count_5 or More',
+                  # 'daily_drink_count_5 or 6',
+                  # 'daily_drink_count_7 to 9',
+                  # 'daily_drink_count_10 or More',
+                  'daily_drink_count_Unknown',
+                  # 'ever_smoker_Yes',
+                  # 'ever_smoker_Unknown', 
+                  # 'smoke_freq_Never smoker',
+                  'smoke_freq_Former smoker',
+                  'smoke_freq_Some Days',
+                  'smoke_freq_Every Day',
+                  'smoke_freq_Unknown']
+
+time_series_features: ['fat_burn_min', 
+                        'cardio_min', 
+                        'peak_min',
+                        'out_of_range_min', 
+                        # 'activity_calories', 
+                        # 'calories_bmr', 
+                        'calories_out',
+                        # 'elevation', 
+                        'fairly_active_minutes', 
+                        # 'floors',
+                        'lightly_active_minutes', 
+                        'marginal_calories', 
+                        # 'sedentary_minutes',
+                        'steps', 
+                        'very_active_minutes', 
+                        'minute_in_bed',
+                        'minute_asleep', 
+                        'sleep_efficiency',
+                        'minute_after_wakeup', 
+                        # 'minute_awake', 
+                        'minute_deep',
+                        'minute_light', 
+                        'minute_rem', 
+                        'minute_wake', 
+                        'nap_min']
+results_folder: 'results/base_mdl_20260117/'
+
+excl_vars_ts: ['out_of_range_min', # we alr know this through fat burn minutes
+                'sedentary_minutes',
+                'calories_out',
+                'marginal_calories', # keeping activity calories because marginal calories linked to height and weight and BMI
+                'minute_asleep', # not necessary since we have minute light, deep, wake
+                'sleep_efficiency', # info encoded in minute_wake
+                'minute_in_bed'
+             ]
+excl_vars_static: ['smoke_start_age', # since na value has been filled with 0, it is hard to interpret this variable in regression
+                    'other_smoking' # exclude as less than 1%
+                    ]
+
+xgb_run: True
+transformer_run: True
+transformer_mdl_setting: 
+  val_split: 0.15
+  test_split: 0.15
+  batch_size: 128
+  d_model: 64
+  n_layers: 1
+  n_heads: 1
+  d_ff: 256
+  max_len: 21
+  dropout_p: 0.2
+  ts_only_config:
+    max_epoch: 30
+    initial_lr: 8e-3
+    weight_decay: 0.1
+    cosine_anneal_lr_scheduler:
+      T_0: 5      # first restart after 10 epochs
+      T_mult: 2      # each next cycle is 2× longer
+      eta_min: 1e-6
+  with_static_config:
+    freeze_mdl_weights: True
+    max_epoch: 50
+    initial_lr: 5e-3
+    weight_decay: 0.1
+    cosine_anneal_lr_scheduler:
+      T_0: 5        # first restart after 10 epochs
+      T_mult: 2      # each next cycle is 2× longer
+      eta_min: 1e-6
+
+feature_rename_map: {
+    'Demographic': {
+          'age': 'Age',
+          'sex_male': 'Sex (male)',
+          'race_nonwhite': 'Race (non-White)',
+          'BMI': 'BMI'
+        },
+    'Lifestyle': {
+      # 'ever_smoker_Yes': 'Ever smoked: Yes',
+      # 'ever_smoker_Unknown': 'Ever smoked: Unknown',
+      # 'smoke_freq_Never smoker': 'Smoking frequency: Never smoker',
+      'smoke_freq_Former smoker': 'Smoking frequency: Former smoker',
+      'smoke_freq_Some Days': 'Smoking frequency: Some days',
+      'smoke_freq_Every Day': 'Smoking frequency: Every day',
+      'smoke_freq_Unknown': 'Smoking frequency: Unknown',
+      'alcohol_drinking_Yes': 'Alcohol consumption: Yes',
+      'alcohol_drinking_Unknown': 'Alcohol consumption: Unknown',
+      # 'past_year_drink_freq_Monthly Or Less': 'Past year drinking: Monthly Or Less',
+      # 'past_year_drink_freq_2 to 4 Per Month': 'Past year drinking: 2 to 4 Per Month',
+      # 'past_year_drink_freq_2 to 3 Per Week': 'Past year drinking: 2 to 3 Per Week',
+      # 'past_year_drink_freq_4 or More Per Week': 'Past year drinking: 4 or More Per Week',
+      # 'past_year_drink_freq_Unknown': 'Past year drinking: Unknown',
+      'daily_drink_count_1 or 2': 'Daily drink count: 1 or 2',
+      'daily_drink_count_3 or 4': 'Daily drink count: 3 or 4',
+      'daily_drink_count_5 or More': 'Daily drink count: 5 or More',
+      # 'daily_drink_count_5 or 6': 'Daily drink count: 5 or 6',
+      # 'daily_drink_count_7 to 9': 'Daily drink count: 7 to 9',
+      # 'daily_drink_count_10 or More': 'Daily drink count: 10 or more',
+
+      'binge_drinking_freq_Monthly or less': 'Binge drinking: Monthly or less',
+      'binge_drinking_freq_Monthly': 'Binge drinking: Monthly',
+      'binge_drinking_freq_Weekly': 'Binge drinking: Weekly',
+      'binge_drinking_freq_Daily': 'Binge drinking: Daily',
+      'binge_drinking_freq_Unknown': 'Binge drinking: Unknown',
+
+      'daily_drink_count_Unknown': 'Daily drink count: Unknown',
+      'missing_flag':  'Did not respond to smoking/drinking questionnaire',
+      },
+    'Heart rate': {
+      'out_of_range_min_mean': 'Out-of-range heart rate minutes (mean)',
+      'out_of_range_min_std': 'Out-of-range heart rate minutes (STD)',
+      'fat_burn_min_mean': 'Fat burn minutes (mean)',
+      'fat_burn_min_std': 'Fat burn minutes (STD)',
+      'cardio_min_mean': 'Cardio minutes (mean)',
+      'cardio_min_std': 'Cardio minutes (STD)',
+      'peak_min_mean': 'Peak heart rate minutes (mean)',
+      'peak_min_std': 'Peak heart rate minutes (STD)'
+      },
+    'Activity': {
+      'activity_calories_mean': 'Activity calories (mean)',
+      'activity_calories_std': 'Activity calories (STD)',
+      'marginal_calories_mean': 'Marginal calories (mean)',
+      'marginal_calories_std': 'Marginal calories (STD)',
+      'calories_out_mean': 'Calories out (mean)',
+      'calories_out_std': 'Calories out (STD)',
+      'sedentary_minutes_mean': 'Sedentary minutes (mean)',
+      'sedentary_minutes_std': 'Sedentary minutes (STD)',
+      'lightly_active_minutes_mean': 'Lightly active minutes (mean)',
+      'lightly_active_minutes_std': 'Lightly active minutes (STD)',
+      'fairly_active_minutes_mean': 'Fairly active minutes (mean)',
+      'fairly_active_minutes_std': 'Fairly active minutes (STD)',
+      'very_active_minutes_mean': 'Very active minutes (mean)',
+      'very_active_minutes_std': 'Very active minutes (STD)',
+      'steps_mean': 'Steps (mean) every thousand increase',
+      'steps_std': 'Steps (STD)'
+    },
+    'Sleep': {
+      'minute_in_bed_mean': 'Minutes in bed (mean)',
+      'minute_in_bed_std': 'Minutes in bed (STD)',
+      'minute_asleep_mean': 'Minutes asleep (mean)',
+      'minute_asleep_std': 'Minutes asleep (STD)',
+      'sleep_efficiency_mean': 'Sleep efficiency (mean)',
+      'sleep_efficiency_std': 'Sleep efficiency (STD)',
+      'minute_after_wakeup_mean': 'Minutes in bed after wakeup (mean)',
+      'minute_after_wakeup_std': 'Minutes in bed after wakeup (STD)',
+      'minute_wake_mean': 'Wake minutes (mean)',
+      'minute_wake_std': 'Wake minutes (STD)',
+      'minute_light_mean': 'Light sleep minutes (mean)',
+      'minute_light_std': 'Light sleep minutes (STD)',
+      'minute_deep_mean': 'Deep sleep minutes (mean)',
+      'minute_deep_std': 'Deep sleep minutes (STD)',
+      'minute_rem_mean': 'REM sleep minutes (mean)',
+      'minute_rem_std': 'REM sleep minutes (STD)',
+      'nap_min_mean': 'Nap minutes (mean)',
+      'nap_min_std': 'Nap minutes (STD)'
+    }
+}
+

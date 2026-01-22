@@ -1,0 +1,180 @@
+
+survey_df_path_pattern: 'data/01_raw/survey_df_20250514_{i}.csv'
+savepath: 'data/02_intermediate/survey_df_20260113.csv'
+savepath_cat: 'data/02_intermediate/survey_df_no_onehot_20260113.csv'
+ordinal_encoding:
+    # alcohol
+    # 'Alcohol: Alcohol Participant':
+    #   'Yes': True
+    #   'No': False
+    # 'Alcohol: 6 or More Drinks Occurrence':
+    #   'Daily': 4
+    #   'Weekly': 3
+    #   'Monthly': 2
+    #   'Less Than Monthly': 1
+    #   'Never In Last Year': 0
+    # 'Alcohol: Average Daily Drink Count':
+    #   '1 or 2': 1
+    #   '3 or 4': 2
+    #   '5 or 6': 3
+    #   '7 to 9': 4
+    #   '10 or More': 5
+    # 'Alcohol: Drink Frequency Past Year':
+    #   'Never': 0
+    #   'Monthly Or Less': 1
+    #   '2 to 4 Per Month': 2
+    #   '2 to 3 Per Week': 3
+    #   '4 or More Per Week': 4 
+    # smoking
+    # 'Smoking: Smoke Frequency':
+    #   'Not At All': 0
+    #   'Some Days': 1
+    #   'Every Day': 2
+    # 'Smoking: 100 Cigs Lifetime':
+    #   'Yes': True
+    #   'No': False
+    'Smoking: Serious Quit Attempt':
+      'No Attempt Quit Smoking': False
+      'Attempt Quit Smoking': True
+    
+    # e-cig and others
+    'Electronic Smoking: Electric Smoke Participant': 
+      'Yes': True
+      'No': False
+    'Hookah Smoking: Hookah Smoke Participant': 
+      'Yes': True
+      'No': False
+    'Smokeless Tobacco: Smokeless Tobacco Participant':
+      'Yes': True
+      'No': False
+    'Cigar Smoking: Cigar Smoke Participant':
+      'Yes': True
+      'No': False
+
+    'Hookah Smoking: Current Hookah Frequency': 
+      'Not At All': 0
+      'Some Days': 1
+      'Every Day': 2
+    'Electronic Smoking: Electric Smoke Frequency':
+      'Not At All': 0
+      'Some Days': 1
+      'Every Day': 2
+    'Smokeless Tobacco: Smokeless Tobacco Frequency':
+      'Not At All': 0
+      'Some Days': 1
+      'Every Day': 2
+    'Cigar Smoking: Current Cigar Frequency':
+      'Not At All': 0
+      'Some Days': 1
+      'Every Day': 2
+
+one_hot_encode: ['binge_drinking_freq', 
+                'past_year_drink_freq', 
+                'daily_drink_count',
+                'ever_smoker',
+                'alcohol_drinking',
+                'smoke_freq']
+
+categorical_vars: [
+  'Alcohol: Alcohol Participant',
+  'Smoking: 100 Cigs Lifetime',
+  'Smoking: Smoke Frequency',
+  'Alcohol: 6 or More Drinks Occurrence',
+  'Alcohol: Average Daily Drink Count',
+  'Alcohol: Drink Frequency Past Year',
+  'Smoking: Average Daily Cigarette Number'
+]
+
+categorical_bins: {
+  'Alcohol: Average Daily Drink Count': {
+    '5 or 6': '5 or More',
+    '7 to 9': '5 or More',
+    '10 or More': '5 or More'
+  }
+}
+
+continuous_var:
+    ['Smoking: Number Of Years',
+    'Smoking: Average Daily Cigarette Number',
+    'Smoking: Current Daily Cigarette Number',
+    'Attempt Quit Smoking: Completely Quit Age',
+    'Smoking: Daily Smoke Starting Age']
+
+rename_map:
+  'Alcohol: 6 or More Drinks Occurrence': 'binge_drinking_freq'
+  'Alcohol: Alcohol Participant': 'alcohol_drinking'
+  'Alcohol: Average Daily Drink Count': 'daily_drink_count'
+  'Alcohol: Drink Frequency Past Year': 'past_year_drink_freq'
+  'Attempt Quit Smoking: Completely Quit Age': 'smoke_quit_age'
+  'Smoking: 100 Cigs Lifetime': 'ever_smoker'
+  'Smoking: Average Daily Cigarette Number': 'daily_cig_count'
+  'Smoking: Current Daily Cigarette Number': 'current_daily_cig_count'
+  'Smoking: Daily Smoke Starting Age': 'smoke_start_age'
+  'Smoking: Number Of Years': 'smoke_years'
+  'Smoking: Serious Quit Attempt': 'smoke_quit_attempt'
+  'Smoking: Smoke Frequency': 'smoke_freq'
+
+other_smoking: ['Cigar Smoking: Cigar Smoke Participant',
+                          'Hookah Smoking: Hookah Smoke Participant',
+                        'Electronic Smoking: Electric Smoke Participant',
+                        'Smokeless Tobacco: Smokeless Tobacco Participant']
+drop_col_other_smoking: ['Cigar Smoking: Cigar Smoke Participant',
+                            'Hookah Smoking: Hookah Smoke Participant',
+                            'Electronic Smoking: Electric Smoke Participant',
+                            'Smokeless Tobacco: Smokeless Tobacco Participant',
+                            'Cigar Smoking: Current Cigar Frequency',
+                            'Hookah Smoking: Current Hookah Frequency',
+                            'Electronic Smoking: Electric Smoke Frequency',
+                            'Smokeless Tobacco: Smokeless Tobacco Frequency']
+
+keep_cols: ['binge_drinking_freq_Daily',
+            'binge_drinking_freq_Weekly',
+            'binge_drinking_freq_Monthly',
+            'binge_drinking_freq_Less Than Monthly',
+            # 'binge_drinking_freq_Never In Last Year',
+            'binge_drinking_freq_Unknown',
+            'alcohol_drinking_Yes',
+            # 'alcohol_drinking_No',
+            'alcohol_drinking_Unknown',
+
+            # 'past_year_drink_freq_Never',
+            'past_year_drink_freq_Monthly Or Less',
+            'past_year_drink_freq_2 to 4 Per Month',
+            'past_year_drink_freq_2 to 3 Per Week',
+            'past_year_drink_freq_4 or More Per Week',
+            'past_year_drink_freq_Unknown',
+
+            # 'daily_drink_count_0',
+            'daily_drink_count_1 or 2',
+            'daily_drink_count_3 or 4',
+            'daily_drink_count_5 or More',
+            # 'daily_drink_count_5 or 6',
+            # 'daily_drink_count_7 to 9',
+            # 'daily_drink_count_10 or More',
+            'daily_drink_count_Unknown',
+            
+            'ever_smoker_Yes',
+            # 'ever_smoker_No',
+            'ever_smoker_Unknown', 
+            # 'smoke_freq_Not At All',
+            'smoke_freq_Never smoker',
+            'smoke_freq_Former smoker',
+            'smoke_freq_Some Days',
+            'smoke_freq_Every Day', 
+            'smoke_freq_Unknown', 
+            'daily_cig_count', 
+            'smoke_years', 
+            'smoke_start_age', 
+            'other_smoking']
+
+keep_cols_cat: ['binge_drinking_freq',
+              'alcohol_drinking',
+              'past_year_drink_freq',
+              'daily_drink_count',        
+              'ever_smoker',
+              'smoke_freq', 
+              'daily_cig_count', 
+              'smoke_years', 
+              'smoke_start_age', 
+              'other_smoking']
+    
