@@ -45,6 +45,6 @@ filtered_dfs:
   activity_df:
     filter_file_dir: 'data/02_intermediate/'
     filter_file_pattern: 'sleep_data_sleep_cohort_'
-    fetch: True
+    fetch: False
     sql: 'activity_df.txt'
     save_name: '02_intermediate/activity_20251002/activity_df_20251002_{i}.parquet'
