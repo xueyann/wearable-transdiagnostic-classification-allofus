@@ -59,34 +59,35 @@ def main():
             for filter_file in filter_file_list:
                 # Get file chunk id
                 chunk_id = filter_file.split('_')[-1].split('.')[0]
-                if not int(chunk_id) in [0, 1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 2, 20, 21, 22, 23, 24]:
-                    print(f"{chunk_id = }")
-                    # Get string of sleep dates
-                    print(f"Reading {filter_file} for filtering...")
-                    sleep_dates = pd.read_csv(filter_file)[['person_id', 'sleep_date']].drop_duplicates()
-                    sleep_dates = [tuple(x) for x in sleep_dates.values.tolist()]
-                    # fetch in 3 chunks bc otherwise sql query is too long
-                    n_parts = 5
-                    df = []
-                    start = 0
-                    stop = int(len(sleep_dates)/n_parts)
-                    for _ in range(n_parts):
-                        # # Build the UNION ALL part
-                        # sleep_date_str = ','.join(f"({pid}, DATE '{d}')" for pid, d in sleep_dates[start:5])
-                        structs = []
-                        for i, (pid, dt) in enumerate(sleep_dates[start:stop]):
-                            if i == 0:
-                                structs.append(f"STRUCT({pid} AS person_id, DATE '{dt}' AS d)")
-                            else:
-                                structs.append(f"STRUCT({pid}, DATE '{dt}')")
-                        unnest_sql = "SELECT * FROM UNNEST([\n    " + ",\n    ".join(structs) + "\n  ])"
-                        # Format sql string
-                        sql = sql.format_map(DefaultDict({'filter_string': unnest_sql}))
-                        print(len(sql))
-                        df.append(fetch_query(sql))
-                        # Update indices
-                        start = stop
-                        stop = min(stop + int(len(sleep_dates)/n_parts), len(sleep_dates)-1)
+                # if not int(chunk_id) in [0, 1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 2, 20, 21, 
+                #                          22, 23, 24, 25, 26, 27, 28, 29]:
+                print(f"{chunk_id = }")
+                # Get string of sleep dates
+                print(f"Reading {filter_file} for filtering...")
+                sleep_dates = pd.read_csv(filter_file)[['person_id', 'sleep_date']].drop_duplicates()
+                sleep_dates = [tuple(x) for x in sleep_dates.values.tolist()]
+                # fetch in 3 chunks bc otherwise sql query is too long
+                n_parts = 5
+                df = []
+                start = 0
+                stop = int(len(sleep_dates)/n_parts)
+                for _ in range(n_parts):
+                    # # Build the UNION ALL part
+                    # sleep_date_str = ','.join(f"({pid}, DATE '{d}')" for pid, d in sleep_dates[start:5])
+                    structs = []
+                    for i, (pid, dt) in enumerate(sleep_dates[start:stop]):
+                        if i == 0:
+                            structs.append(f"STRUCT({pid} AS person_id, DATE '{dt}' AS d)")
+                        else:
+                            structs.append(f"STRUCT({pid}, DATE '{dt}')")
+                    unnest_sql = "SELECT * FROM UNNEST([\n    " + ",\n    ".join(structs) + "\n  ])"
+                    # Format sql string
+                    sql = sql.format_map(DefaultDict({'filter_string': unnest_sql}))
+                    print(len(sql))
+                    df.append(fetch_query(sql))
+                    # Update indices
+                    start = stop
+                    stop = min(stop + int(len(sleep_dates)/n_parts), len(sleep_dates)-1)
                     # Concatenate the chunks together
                     df = pd.concat(df)
                     savename = fetch_dict['save_name'].format(i=chunk_id)

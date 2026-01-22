@@ -112,11 +112,32 @@ def get_inclusion():
     with open(f'{output_folder}/phewas_desc_incl.tex', 'w') as f:
         f.write(latex_table)
     
+def get_drug_list():
+
+    df = pd.DataFrame(pd.Series(yaml.safe_load(open('conf/drug_list.yaml')), name = 'Drug Names'))
+
+    df.index = df.index.str.replace('_', ' ').str.title().map(lambda x: {'Ssri': 'SSRI',
+                                                                        'Snri': 'SNRI',
+                                                                        'Non Dhp Calcium Channel Blockers': 'Non-DHP Calcium Channel Blockers'}.get(x, x))
+    df.index.name = 'Drug Class'
+    df['Drug Names'] = df['Drug Names'].apply(lambda lst: ', '.join([x.title() for x in lst]))
+    latex_table = df.to_latex(index = True,
+                            longtable = True,
+                            column_format = r">{\setstretch{0.9}\raggedright\arraybackslash}p{5cm}>{\setstretch{0.9}\raggedright\arraybackslash}p{11cm}",
+                            caption = 'List of drugs affecting heart rate and sleep excluded in Clean Control cohort',
+                            label = 'tab:drug_list')
+                            
+    # latex_table = r"\renewcommand{\arraystretch}{1.7}" + '\n' + latex_table + '\n' + r"\renewcommand{\arraystretch}{1.0}"
+    # latex_table = latex_table.replace(r'\begin{table}', r'\begin{table}[h]')
+    with open(f'{output_folder}/drug_list.tex', 'w') as f:
+        f.write(latex_table)
+
 
 if __name__ == '__main__':
 
     get_inclusion()
     get_icd_excl_latex()
+    get_drug_list()
 
 
     
