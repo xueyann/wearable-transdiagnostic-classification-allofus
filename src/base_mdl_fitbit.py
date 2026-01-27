@@ -28,6 +28,7 @@ from sklearn.metrics import (
 )
 from sklearn.calibration import calibration_curve
 import statsmodels.api as sm
+from statsmodels.stats.multitest import multipletests
 
 from lib.transformer import SleepDataset, TransformerClassifier, ClassifierHead, \
     get_train_val_test_dataloader, compute_mean_and_std_batch, \
@@ -162,7 +163,7 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1, threshold = 0.5)
 
 
 def create_logreg_mdl(X_train, X_test, y_train, y_test,
-                      subcohort, features, feature_rename_map, output_folder):
+                      subcohort, features, feature_rename_map, output_folder, alpha = 0.05):
 
     # compute event per variabale
     n_events = min(len(y_train) - y_train.sum(), y_train.sum())
@@ -178,14 +179,15 @@ def create_logreg_mdl(X_train, X_test, y_train, y_test,
     print(f'Test ROC AUC: {test_auc: .2f}')
     print(classification_report(y_test, y_pred))
     # get summary df and print the variables with significant p value
-    summary = get_logreg_results(results).sort_values('p')
+    summary = get_logreg_results(results, alpha = alpha).sort_values('p')
     # print(summary.loc[summary['p']<=0.05])
     # add only the significant variables to list of summaries
     df_fmt, idx_map, latex = format_reg_results(summary, subcohort.replace('subcohort_', ''), 
-                                                rename_map = feature_rename_map, multiindex=True)
-    df_fmt = df_fmt[['Coef', r'\textit{p}']]
+                                                rename_map = feature_rename_map, multiindex=True,
+                                                alpha = alpha)
+    df_fmt = df_fmt[['Coef', r'\textit{p}', r'\textit{Adjusted p}']]
     # amend the index
-    df_fmt.columns = pd.MultiIndex.from_tuples([(subcohort.replace('subcohort_', ''), x) for x in['Coef', r'\textit{p}']])
+    df_fmt.columns = pd.MultiIndex.from_tuples([(subcohort.replace('subcohort_', ''), x) for x in['Coef', r'\textit{p}', r'\textit{Adjusted p}']])
 
     with open(f"{output_folder}{subcohort}.tex", 'w') as f:
         f.write(latex)
@@ -415,11 +417,12 @@ def mdl_train_loop(model, clf,
 
     return model, clf
 
-def get_logreg_results(results):
+def get_logreg_results(results, alpha = 0.05):
     df = results.conf_int().rename(columns = {0: 'CI_lower', 1: 'CI_upper'})
     df['p'] = results.pvalues
+    _, df['p_adjusted'], _, _ = multipletests(df['p'], alpha = alpha, method = "fdr_bh")
     df['coef'] = np.round(results.params, 3)
-    df = df[['coef', 'CI_lower', 'CI_upper', 'p']]
+    df = df[['coef', 'CI_lower', 'CI_upper', 'p', 'p_adjusted']]
     df['CI_lower'] = np.round(df['CI_lower'], 3)
     df['CI_upper'] = np.round(df['CI_upper'], 3)
     return df
@@ -470,13 +473,15 @@ def format_reg_results(df, subcohort, rename_map = None, multiindex = False, alp
 
     # Format p-values
     df_fmt["p"] = df_fmt["p"].apply(format_p)
+    df_fmt["p_adjusted"] = df_fmt["p_adjusted"].apply(format_p)
 
     # Rename columns for publication
-    df_fmt = df_fmt[['coef', '95%_CI', 'p']].rename(
+    df_fmt = df_fmt[['coef', '95%_CI', 'p', 'p_adjusted']].rename(
         columns={
             "coef": "Coef",
             '95%_CI': "95\% CI",
             "p": r"\textit{p}",
+            "p_adjusted": r"\textit{Adjusted p}",
         }
     )
 
@@ -486,7 +491,7 @@ def format_reg_results(df, subcohort, rename_map = None, multiindex = False, alp
     latex_table = df_fmt.to_latex(
         escape=False,       # allow LaTeX formatting (e.g. \textit{p})
         float_format="%.3f",
-        column_format="lrrrr",
+        column_format="lrrrrr",
         caption=f"Regression coefficients of subcohort {subcohort} with 95\% confidence interval",
         label="tab:regression",
     )
@@ -560,13 +565,16 @@ def make_mdl_df_static(cohort,
 
 
 def create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, output_folder):
+
     # Compare results across all cohorts for logreg
     comp_df = reduce(lambda x, y: x.join(y, how = 'outer'), logreg_res)
     # Select those variables significant in at least one subcohort
-    comp_df = comp_df.loc[comp_df[[(x.replace('subcohort_', ''), r'\textit{p}') for x in subcohort_cols]]\
+    comp_df = comp_df.loc[comp_df[[(x.replace('subcohort_', ''), r'\textit{Adjusted p}') for x in subcohort_cols]]\
                             .apply(lambda x: x.str.contains('\*', regex=True).any(), axis=1)]
     # order the index
     comp_df = comp_df.loc[[x for x in list(idx_map.values()) if x in comp_df.index]]
+    # drop nominal p-value and only keep adjusted p value
+    comp_df = comp_df.drop(columns = r'\textit{p}', level = 1)
 
     # export to latex
     comp_latex = comp_df.to_latex(
@@ -576,7 +584,8 @@ def create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, output_folder):
         longtable = True,
         bold_rows = True,
         multicolumn_format = 'c',
-        caption= r"Regression coefficients across subcohorts at 5\% significance level",
+        column_format = r"l>{\raggedright\arraybackslash\setstretch{0.85}}p{2.8cm}rlrlrlrlrlrlrl",
+        caption= r"Regression coefficients across subcohorts at 5\% significance level with Benjamini–Hochberg (BH) adjusted p-values",
         label="tab:regression",
     )
 
