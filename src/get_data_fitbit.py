@@ -12,7 +12,7 @@ if __name__ == '__main__':
     dataset = os.environ['WORKSPACE_CDR']
     bucket = os.environ['WORKSPACE_BUCKET']
 
-
+    # we need to outer join sleep level because it is on 30-second resolution whereas step and heart rate are minute level
     query = f"""
         EXPORT DATA
             OPTIONS(
@@ -21,32 +21,42 @@ if __name__ == '__main__':
                 overwrite=true
             )
         AS
-        SELECT 
-            ac.person_id as person_id,
-            ac.`datetime` as `datetime`,
-            ac.steps as steps,
-            hr.heart_rate_value as heart_rate,
+        
+
+        SELECT
+            COALESCE(ac_hr.person_id, sl.person_id) as person_id,
+            COALESCE(ac_hr.`datetime`, sl.start_datetime) as `datetime`,
+            ac_hr.steps as steps,
+            ac_hr.heart_rate,
             sl.sleep_date,
             sl.is_main_sleep,
             sl.level,
-            sl.duration_in_min 
+            sl.duration_in_min
         FROM
-            {dataset}.steps_intraday ac
-        JOIN
-            {dataset}.heart_rate_minute_level hr
-        ON
             (
-                ac.person_id = hr.person_id
-            AND
-                ac.`datetime` = hr.`datetime`
-            )
-        LEFT JOIN
+                SELECT 
+                    ac.person_id as person_id,
+                    ac.`datetime` as `datetime`,
+                    ac.steps as steps,
+                    hr.heart_rate_value as heart_rate
+                FROM
+                    {dataset}.steps_intraday ac
+                JOIN
+                    {dataset}.heart_rate_minute_level hr
+                ON
+                    (
+                        ac.person_id = hr.person_id
+                    AND
+                        ac.`datetime` = hr.`datetime`
+                    )
+            ) ac_hr
+        FULL OUTER JOIN
             {dataset}.sleep_level sl  
         ON
             (   
-                ac.person_id = sl.person_id
+                ac_hr.person_id = sl.person_id
             AND
-                ac.`datetime` = sl.start_datetime
+                ac_hr.`datetime` = sl.start_datetime
             );
     """
 
@@ -115,7 +125,7 @@ if __name__ == '__main__':
     
     print('starting')
     client = bigquery.Client()
-    job = client.query(query_summary)
+    job = client.query(query)
     result = job.result()  # wait for the job to finish
 
     stop = time.time()
