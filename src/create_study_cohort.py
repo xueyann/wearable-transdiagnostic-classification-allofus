@@ -311,6 +311,7 @@ def create_cohort(config):
     ############### Cohort creation ################
     # map condition description into subcohorts
     cdf['subcohort'] = cdf['description'].map(config['condition_map'])
+    cdf.to_csv(config['diag_alltime_savepath'])
 
     ########## patients with a condition #############
     cohort = cdf.loc[~cdf['subcohort'].isna(), ['person_id', 'subcohort', 'condition_start_date']].drop_duplicates().copy()

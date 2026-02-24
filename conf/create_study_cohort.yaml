@@ -2,8 +2,9 @@ total_cohort:
   run: True
   person_df: 'data/01_raw/person_df_20250506.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
-  parent_phecode_removed_df: 'data/02_intermediate/study_cohorts_20251201/condition_df_parent_phecode_removed.parquet'
+  parent_phecode_removed_df: 'data/02_intermediate/study_cohorts_20251222/condition_df_parent_phecode_removed.parquet'
   parent_phecode_removed_avail: True
+  diag_alltime_savepath: 'data/02_intermediate/study_cohorts_20251222/diag_alltime.csv'
   drug_list: 'conf/drug_list.yaml'
   prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
   icd_excl: 'conf/icd_excl.yaml'
@@ -89,7 +90,7 @@ total_cohort:
                     'Chronic obstructive asthma with exacerbation']
   }
   excl_drug_df_available: True
-  excl_drug_savepath: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
+  excl_drug_savepath: 'data/02_intermediate/study_cohorts_20251222/hr_and_sleep_drugs.csv'
   fitbit_summary_data: 'data/02_intermediate/fitbit_data_summary/'
   min_streak_length: 21
   cohort_save_path: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'

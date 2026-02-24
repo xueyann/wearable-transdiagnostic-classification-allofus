@@ -1,6 +1,7 @@
 from itertools import islice
 import os
 import pandas as pd
+import numpy as np
 # For slicing an iterable
 
 def chunked(iterable, size):
@@ -161,3 +162,8 @@ def format_p(p, alpha = 0.05):
         return f"{p:.3f}*"
     else:
         return f"{p:.3f}"
+
+def rmssd(x):
+    x = np.asarray(x)
+    diff = np.diff(x)
+    return np.sqrt(np.mean(diff**2))
