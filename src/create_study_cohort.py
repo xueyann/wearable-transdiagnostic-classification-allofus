@@ -289,6 +289,7 @@ def filter_by_recency(cohort, streaks, diag, recency_filter):
                                         'condition_start_date_max': 'diag_max'}).reset_index()
     
     df_t = streaks_mm.merge(diag_mm)
+    df_t['recency'] = (df_t['streak_start_min'] - df_t['diag_max']).dt.days/365
 
     # create a dataframe with just recent diagnosis
     df_rec = []
@@ -361,10 +362,14 @@ def create_cohort(config):
     # only keep person id column and drop duplicates
     control_cohort = control_cohort[['person_id']].drop_duplicates()
     print(f"Control cohort size = {control_cohort['person_id'].nunique()} after filtering for additional exclusion using ICD codes")
+    attrition['either a diagnosis assigned or in control cohort'] = cohort['person_id'].nunique() + control_cohort['person_id'].nunique()
+    print(attrition)
 
     ######### diagnosis recency filter #########
     # Include only recent diagnosis
     cohort = filter_by_recency(cohort, streaks, cdf, config['recency_filter'])
+    attrition['Filtered disease subcohort based on recency criteria'] = cohort['person_id'].nunique() + control_cohort['person_id'].nunique()
+    print(attrition)
     # For each condition, take the earliest date as index date
     cohort = cohort.groupby(['person_id', 'subcohort'], as_index=False).min()
     # Make the value at each position the diagnosis date
@@ -376,10 +381,7 @@ def create_cohort(config):
     cohort = cohort.drop(columns = ['condition_start_date'])
     # aggregate
     cohort = cohort.groupby('person_id', as_index=False).sum()
-
-    ########### control cohort ###########
     
-
     ########### the original strict filtering criteria ##############
     # control_cohort = control_cohort.loc[~control_cohort['person_id'].isin(excl_drug_df['person_id'])]
     # print(f"Control cohort size = {control_cohort.shape[0]} after filtering for sleep and HR medications")
@@ -425,10 +427,9 @@ def create_cohort(config):
     # make sure only one line per person
     assert cohort.shape[0] == cohort['person_id'].nunique()
 
-    # print cohort sizes
-    for col in subcohort_cols:
-        print(f"Subcohort {col.replace('subcohort_', '')}: {cohort.loc[cohort[col].notna()].shape[0]}")
-    print(f"Control cohort: {cohort.loc[(cohort[subcohort_cols].isna()).all(axis=1)].shape[0]}")
+    print(cohort)
+
+
 
     ####### Get static features #######
     cohort = get_static_features(cohort,
@@ -438,6 +439,12 @@ def create_cohort(config):
                             config['physical_measurement_features'])
     attrition['Have all key demographic features'] = cohort.shape[0]
     print(attrition)
+
+    # print cohort sizes
+    for col in subcohort_cols:
+        cohort.loc[cohort[col]=='', col] = np.nan
+        print(f"Subcohort {col.replace('subcohort_', '')}: {cohort.loc[cohort[col].notna()].shape[0]}")
+    print(f"Control cohort: {cohort.loc[(cohort[subcohort_cols].isna()).all(axis=1)].shape[0]}")
     
     ######## Save cohort together with static features #######
     cohort_save_path = config['cohort_save_path']
@@ -494,7 +501,7 @@ def get_time_series_features(cohort, streaks, fitbit_summary, config):
     # save time series features
     fitbit_summary.to_csv(config['time_series_features_savepath'], index=False)
     # get sumstats
-    fitbit_summary = get_fitbit_sumstats(fitbit_summary)
+    fitbit_summary = get_fitbit_sumstats(fitbit_summary, time_series_features)
 
     fitbit_summary.to_csv(config['time_series_features_sumstats_savepath'], index=False)
     
@@ -522,6 +529,10 @@ def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_de
                            min_streak_length = 21, streak_save_path = None):
     # read fitbit summary data and formatting
     df = pd.read_parquet(fpath)
+    # fillna for active minutes
+    df['very_active_minutes'] = df['very_active_minutes'].fillna(0)
+    df['fairly_active_minutes'] = df['fairly_active_minutes'].fillna(0)
+    df['lightly_active_minutes'] = df['lightly_active_minutes'].fillna(0)
     # some feature engineering
     df['sleep_efficiency'] = df['minute_asleep']/df['minute_in_bed']
     df['deep_perc'] = df['minute_deep']/df['minute_in_bed']
@@ -529,7 +540,11 @@ def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_de
     df['wake_perc'] = df['minute_wake']/df['minute_in_bed']
     df['fat_burn_hr_to_light_active_ratio'] = df['fat_burn_min']/df['lightly_active_minutes']
     df['cardio_hr_to_fairly_active_ratio'] = df['cardio_min']/df['fairly_active_minutes']
-    df['peak_hr_to_very_active_ratio'] = df['peak_min']/df['very_active_min']
+    df['peak_hr_to_very_active_ratio'] = df['peak_min']/df['very_active_minutes']
+    # fillna for these ratios
+    df['fat_burn_hr_to_light_active_ratio'] = df['fat_burn_hr_to_light_active_ratio'].fillna(0)
+    df['cardio_hr_to_fairly_active_ratio'] = df['cardio_hr_to_fairly_active_ratio'].fillna(0)
+    df['peak_hr_to_very_active_ratio'] = df['peak_hr_to_very_active_ratio'].fillna(0)
 
     attrition['Having fitbit data'] = df['person_id'].nunique()
     # filter for df in person df
@@ -551,15 +566,13 @@ def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_de
                 df.loc[df['is_main_sleep']==False, ['person_id', 'date', 'minute_in_bed']]\
                     .rename(columns = {'minute_in_bed': 'nap_min'}),
                 how = 'left')
+    df['nap_min'] = df['nap_min'].fillna(0)
     df = df.drop(columns = ['is_main_sleep'])
 
     print('labelled condition df')
-    
-    # fillna for nap min and active minutes
-    df['nap_min'] = df['nap_min'].fillna(0)
-    df['very_active_minutes'] = df['very_active_minutes'].fillna(0)
-    df = df.dropna()
 
+    df = df.dropna()
+    
     # at this point we should have just one row per person
     assert df.shape[0] == df[['person_id', 'date']].drop_duplicates().shape[0]
     
