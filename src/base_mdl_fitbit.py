@@ -12,6 +12,7 @@ import torch.nn.functional as F
 from functools import reduce
 import multiprocessing
 import re
+from functools import partial
 
 import matplotlib.pyplot as plt
 
@@ -24,7 +25,8 @@ from sklearn.metrics import (
     roc_auc_score,
     classification_report,
     roc_curve,
-    brier_score_loss
+    brier_score_loss,
+    precision_recall_curve
 )
 from sklearn.calibration import calibration_curve
 import statsmodels.api as sm
@@ -43,7 +45,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
 
-from lib.model import bootstrap_fmt, paired_bootstrap_fmt
+from lib.model import bootstrap_fmt, paired_bootstrap_fmt, delong_fmt
 
 
 def get_net_benefit(y_true, y_prob, threshold):
@@ -99,7 +101,7 @@ def plot_calibration_curve(y_true, y_prob_dict, ax, title = "Calibration Curve")
 
     return ax 
 
-def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1, threshold = 0.5): 
+def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1): 
     """
     Docstring for get_clf_metrics
     
@@ -110,21 +112,37 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1, threshold = 0.5)
     :param ax1: axes where probability density will be plotted
     :param ax2: axes where calibration curve will be plotted
     :param threshold: Description
+
+
     """
+
+    def get_optimal_threshold(y, probs):
+        precision, recall, thresholds = precision_recall_curve(y, probs)
+        f1 = 2 * (precision * recall) / (precision + recall + 1e-12)
+
+        best_idx = np.argmax(f1)
+        best_threshold = thresholds[best_idx]
+        return best_threshold
+
+    threshold_base = get_optimal_threshold(y_true, y_prob_base)
+    threshold_fb = get_optimal_threshold(y_true, y_prob)
+
 
     def scaled_brier_score(y_true, y_prob):
         brier_score = brier_score_loss(y_true, y_prob)
         prevalence = y_true.sum()/len(y_true)
         return 1 - brier_score/prevalence
     
-    def accuracy_score_modified(y_true, y_prob): 
+    def accuracy_score_modified(y_true, y_prob, threshold=0.5): 
         return accuracy_score(y_true, (y_prob >= threshold).astype(int))
-    def precision_score_modified(y_true, y_prob): 
+    def precision_score_modified(y_true, y_prob, threshold=0.5): 
         return precision_score(y_true, (y_prob >= threshold).astype(int))
-    def recall_score_modified(y_true, y_prob): 
+    def recall_score_modified(y_true, y_prob, threshold=0.5): 
         return recall_score(y_true, (y_prob >= threshold).astype(int))
-    def f1_score_modified(y_true, y_prob): 
+    def f1_score_modified(y_true, y_prob, threshold=0.5): 
         return f1_score(y_true, (y_prob >= threshold).astype(int))
+
+
 
     metric_dict = {
         'Accuracy': accuracy_score_modified,
@@ -135,20 +153,32 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1, threshold = 0.5)
         'Brier Score': brier_score_loss,
         'Brier Skill Score (BSS)': scaled_brier_score
     }
+    core_metric_dict = {
+        'ROC AUC Score': roc_auc_score,
+        'Brier Skill Score (BSS)': scaled_brier_score
+    }
 
     # Get classification metrics
-    perf_dict_base = {metric: bootstrap_fmt(y_true, y_prob_base, func) for metric, func in metric_dict.items()}
-    perf_dict = {metric: bootstrap_fmt(y_true, y_prob, func) for metric, func in metric_dict.items()}
-    perf_dict_diff = {metric: paired_bootstrap_fmt(y_true, y_prob_base, y_prob, func) for metric, func in metric_dict.items()}
+    perf_dict_base = {metric: bootstrap_fmt(y_true, y_prob_base, partial(func, threshold = threshold_base)) \
+                            if metric in ['Accuracy', 'Precision', 'Recall', 'F1 Score'] else \
+                            bootstrap_fmt(y_true, y_prob_base, func) for metric, func in metric_dict.items()}
+    perf_dict = {metric: bootstrap_fmt(y_true, y_prob, partial(func, threshold = threshold_fb)) \
+                            if metric in ['Accuracy', 'Precision', 'Recall', 'F1 Score'] else \
+                            bootstrap_fmt(y_true, y_prob_base, func) for metric, func in metric_dict.items()}
+    perf_dict_diff_p = {metric: paired_bootstrap_fmt(y_true, y_prob_base, y_prob, func) \
+                        if metric != 'ROC AUC Score' else delong_fmt(y_true, y_prob_base, y_prob) \
+                        for metric, func in metric_dict.items()}
 
     # convert to pandas series
     perf = pd.concat([pd.Series(perf_dict_base), 
                       pd.Series(perf_dict), 
-                      pd.Series(perf_dict_diff)],
+                      pd.Series({k:v[0] for k,v in perf_dict_diff_p.items()}),
+                      pd.Series({k:v[1] for k,v in perf_dict_diff_p.items()})],
                       axis = 1,
                       keys = [(mdl_name, 'Base'), 
                               (mdl_name, '+Fitbit'), 
-                              (mdl_name, 'Difference (95% CI)')])
+                              (mdl_name, 'Difference (95% CI)'),
+                              (mdl_name, 'p-value')])
 
     ##### plotting (for full model only) #####
     # 1. Probability distribution stratified by true label
@@ -163,19 +193,27 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1, threshold = 0.5)
 
 
 def create_logreg_mdl(X_train, X_test, y_train, y_test,
-                      subcohort, features, feature_rename_map, output_folder, alpha = 0.05):
+                      subcohort, features, feature_rename_map, output_folder, 
+                      alpha = 0.05,
+                      scale_pos_weight = False):
 
     # compute event per variabale
     n_events = min(len(y_train) - y_train.sum(), y_train.sum())
     epv = n_events/len(features)
     print(f'Event per variable = {int(epv)}, N events {n_events} / degree of freedom {len(features)}')
 
-    clf = sm.Logit(y_train, X_train)
+    # frequency weights for class imbalance
+    if scale_pos_weight:
+        pos_weight = (y_train == 0).sum()/(y_train == 1).sum()
+        freq_weights = np.where(y_train==1, pos_weight, 1)
+        clf = sm.GLM(y_train, X_train, family=sm.families.Binomial(), freq_weights = freq_weights)
+    else:
+        clf = sm.Logit(y_train, X_train)
     results = clf.fit(maxiter = 350)
     y_proba = results.predict(X_test)
     test_auc = roc_auc_score(y_test, y_proba)
     y_pred = (y_proba > 0.5).astype(int)
-    print(f'Pseudo R squared: {results.prsquared: .2f}')
+    # print(f'Pseudo R squared: {results.prsquared: .2f}')
     print(f'Test ROC AUC: {test_auc: .2f}')
     print(classification_report(y_test, y_pred))
     # get summary df and print the variables with significant p value
@@ -195,7 +233,8 @@ def create_logreg_mdl(X_train, X_test, y_train, y_test,
     return df_fmt, idx_map, y_proba
 
 
-def create_mdl_xgb(X_train, y_train, X_test, imb_data = False):
+def create_mdl_xgb(X_train, y_train, X_test, imb_data = False,
+                   scale_pos_weight = False):
 
     if imb_data:
         print('Applying SMOTE to balance the two classes...')
@@ -203,16 +242,25 @@ def create_mdl_xgb(X_train, y_train, X_test, imb_data = False):
         X_train, y_train = ros.fit_resample(X_train, y_train) 
 
     # Make sure the number of threads is balanced.
-    xgb_model = xgb.XGBClassifier(
-        n_jobs = multiprocessing.cpu_count() // 2, 
-        tree_method = "hist",
-        enable_categorical = True 
-    )
+    if scale_pos_weight:
+        xgb_model = xgb.XGBClassifier(
+            n_jobs = multiprocessing.cpu_count() // 2, 
+            tree_method = "hist",
+            enable_categorical = True,
+            scale_pos_weight = (y_train == 0).sum()/(y_train == 1).sum()
+        )
+    else:
+        xgb_model = xgb.XGBClassifier(
+            n_jobs = multiprocessing.cpu_count() // 2, 
+            tree_method = "hist",
+            enable_categorical = True
+        )
     clf = GridSearchCV(
         xgb_model,
         {"max_depth": [2, 4, 6], "n_estimators": [50, 100, 200]},
         verbose = 1,
         n_jobs = 2,
+        
     )
 
     clf.fit(X_train, y_train)
@@ -515,6 +563,7 @@ def make_mdl_df_static(cohort,
                        survey_df, 
                        time_series_sumstats,
                        time_series_features,
+                       rmssd_features,
                        subcohort_cols,
                        static_features,
                        survey_features,
@@ -526,11 +575,12 @@ def make_mdl_df_static(cohort,
 
 
     ######## get features #######
-    sumstats_features = [f"{x}_{suffix}" for x in time_series_features for suffix in ['mean', 'std']]
+    sumstats_features = [f"{x}_{suffix}" for x in time_series_features for suffix in ['mean', 'std']] + \
+                        [f"{x}_rmssd" for x in rmssd_features]
     features = static_features + survey_features + sumstats_features
     # exclude some features; the ones excluded are selected in a separate notebook based on correlation
     # and domain knowledge
-    excl_vars = [f'{x}_{suffix}' for x in excl_vars_ts for suffix in ['mean', 'std']] + excl_vars_static
+    excl_vars = [f'{x}_{suffix}' for x in excl_vars_ts for suffix in ['mean', 'std', 'rmssd']] + excl_vars_static
     features = [x for x in features if x not in excl_vars]
 
     # Create model df
@@ -546,6 +596,7 @@ def make_mdl_df_static(cohort,
     #     # modify features
     #     features = [x for x in features if x != var] + list(var_df.columns)
     
+    df.to_csv('data/temp/mdl_df_temp.csv', index=False)
     df = df[['person_id', 'index_date'] + subcohort_cols + features].dropna(subset = features)
 
     # change stpes to units of 1000 for easier interpretation
@@ -625,7 +676,7 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     print(df)
     df.to_csv(f'{output_folder}/static_mdl_perf.csv', index = True)
 
-    # Stack the df
+    ####### Stack the df and output all metrics to latex #######
     idx_ordered = list(tuple(itertools.product(
                             [x.replace('subcohort_', '') for x in subcohort_cols], 
                             ['Accuracy',
@@ -649,11 +700,29 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     
     latex_str = r'\begin{landscape}\footnotesize' + latex_str + r'\end{landscape}'
 
+    
     with open(f'{output_folder}/static_mdl_perf.tex', 'w') as f:
         f.write(latex_str)
 
 
-    ### Plotting just ROC AUC and BSS to visualise key metrics ###
+    ####### Output just the key performance metrics with p-value #######
+    core_perf = df.swaplevel(0, 2, axis=1).loc[['ROC AUC Score', 'Brier Skill Score (BSS)'], \
+            ['Difference (95% CI)', 'p-value']].swaplevel(0, 2, axis=1).transpose().unstack(2)
+
+    core_perf_latex_str = core_perf.to_latex(None,
+                            escape=True,
+                            float_format="%.3f",
+                            longtable = True,
+                            bold_rows = True,
+                            multicolumn_format = 'c',
+                            caption = 'Improvement in Discrimination (AUROC) and Calibration (BSS) after incorporating FitBit features (95\% CI)',
+                            label = 'tab:coreclfmetrics'
+                        )
+    with open(f'{output_folder}/core_static_mdl_perf.tex', 'w') as f:
+        f.write(core_perf_latex_str)
+
+
+    ####### Plotting just ROC AUC and BSS to visualise key metrics #######
     df = df.loc[['ROC AUC Score', 'Brier Skill Score (BSS)']]\
         .stack(level=0).swaplevel(0 , 1, axis=0).sort_index(level=0).unstack(level=1)\
         .map(lambda x: list(map(float, re.findall(r"-?\d*\.?\d+", x)))) # separate out confidence intervals
@@ -778,6 +847,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
                                     survey_df, 
                                     time_series_sumstats,
                                     time_series_features,
+                                    rmssd_features,
                                     subcohort_cols,
                                     static_features,
                                     survey_features,
@@ -792,20 +862,24 @@ def create_logreg_and_xgb_mdl_comp(cohort,
                                     fig1_path,
                                     fig2_path,
                                     fig3_path,
-                                    test_size = 0.3):
+                                    test_size = 0.3,
+                                    scale_pos_weight = False):
         # get model df
         df, features = make_mdl_df_static(cohort, 
                                             survey_df, 
                                             time_series_sumstats,
                                             time_series_features,
+                                            rmssd_features,
                                             subcohort_cols,
                                             static_features,
                                             survey_features,
                                             excl_vars_ts, # time series variables to be excluded
-                                            excl_vars_static, # static features to be excluded
+                                            excl_vars_static, # statics features to be excluded
                                             # ordinal_var_mapping,
                                             test_size = test_size)
-        # df.to_csv('data/temp/cohort_sumstats_20260108.csv', index=False)
+        
+        df.to_csv('data/temp/cohort_sumstats_20260225.csv', index=False)
+        print(df)
 
         logreg_res = [] # df for aggregating logreg results (coefficients)
         logreg_metrics = [] # for aggregating logreg metrics
@@ -850,7 +924,8 @@ def create_logreg_and_xgb_mdl_comp(cohort,
                                                                         subcohort, 
                                                                         features, 
                                                                         feature_rename_map,
-                                                                        results_folder_logreg) 
+                                                                        results_folder_logreg,
+                                                                        scale_pos_weight = scale_pos_weight) 
             # LogReg model base - note that we don't keep the coefficients
             _, _, y_proba_logreg_base = create_logreg_mdl(sm.add_constant(X_train_base), 
                                                         sm.add_constant(X_test_base), 
@@ -859,7 +934,8 @@ def create_logreg_and_xgb_mdl_comp(cohort,
                                                         subcohort, 
                                                         features_base, 
                                                         feature_rename_map,
-                                                        results_folder_logreg_base) 
+                                                        results_folder_logreg_base,
+                                                        scale_pos_weight = scale_pos_weight) 
             ### Get LogReg model metrics
             logreg_res.append(logreg_res_fmt)
             logreg_metric, axs1[i, 0] = get_clf_metrics(y_test, y_proba_logreg_base,
@@ -874,14 +950,16 @@ def create_logreg_and_xgb_mdl_comp(cohort,
             # XGBoost model
             ########################
             # XGB model full
-            clf, y_proba_xgb = create_mdl_xgb(X_train, y_train, X_test, imb_data = False)
+            clf, y_proba_xgb = create_mdl_xgb(X_train, y_train, X_test, imb_data = False,
+                                            scale_pos_weight = scale_pos_weight)
             assess_clf_perf_xgb(clf, X_test, y_test, 
                                 f'{results_folder_xgb}/{subcohort}/',
                                 features,
                                 feature_rename_map = None,
                                 labels = ['Negative (0)', 'Positive (1)'])
             ### XGB model base
-            clf, y_proba_xgb_base = create_mdl_xgb(X_train_base, y_train, X_test_base, imb_data = False)
+            clf, y_proba_xgb_base = create_mdl_xgb(X_train_base, y_train, X_test_base, imb_data = False,
+                                                   scale_pos_weight = scale_pos_weight)
             assess_clf_perf_xgb(clf, X_test_base, y_test, 
                                 f'{results_folder_xgb_base}/{subcohort}/',
                                 features_base,
@@ -925,12 +1003,14 @@ def create_logreg_and_xgb_mdl_comp(cohort,
 
 def main():
     config = yaml.safe_load(open('conf/base_mdl_fitbit.yaml'))
+    scale_pos_weight = config['scale_pos_weight']
     ## read cohort and feature dataframes ##
     cohort = pd.read_csv(config['cohort'])
     subcohort_cols = config['subcohort_cols']
     time_series_feature_df = pd.read_csv(config['time_series_feature_df'])
     time_series_sumstats = pd.read_csv(config['time_series_sumstats']) # for XGBoost model
     time_series_features = config['time_series_features']
+    rmssd_features = config['rmssd_features']
     survey_features = config['survey_features']
     survey_df = pd.read_csv(config['survey_df'])[['person_id']+survey_features].astype(int)
     static_features = config['static_features']
@@ -983,6 +1063,7 @@ def main():
                                                                     survey_df, 
                                                                     time_series_sumstats,
                                                                     time_series_features,
+                                                                    rmssd_features,
                                                                     subcohort_cols,
                                                                     static_features,
                                                                     survey_features,
@@ -997,12 +1078,16 @@ def main():
                                                                     f'{results_folder}/static_mdl_proba_comp.png',
                                                                     f'{results_folder}/static_mdl_calibration_curve.png',
                                                                     f'{results_folder}/static_mdl_decision_curve.png',
-                                                                    test_size = 0.3)
+                                                                    test_size = 0.3,
+                                                                    scale_pos_weight = scale_pos_weight)
 
         create_metric_comp(logreg_metrics,
                            xgb_metrics,
                            subcohort_cols, 
                            results_folder)
+        # save a copy of the config
+        with open(f"{results_folder}config.yaml", "w") as f:
+            yaml.safe_dump(config, f, sort_keys=False)
             
         sys.exit()
 
