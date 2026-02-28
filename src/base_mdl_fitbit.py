@@ -16,6 +16,8 @@ from functools import partial
 
 import matplotlib.pyplot as plt
 
+import shap
+from scipy.stats import spearmanr
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -36,17 +38,24 @@ from lib.transformer import SleepDataset, TransformerClassifier, ClassifierHead,
     get_train_val_test_dataloader, compute_mean_and_std_batch, \
     compute_mean_and_std_static_batch, normalise_features, get_pred, \
     assess_clf_perf
+from lib.helpers import format_p
 from src.mdl_sleep import assess_clf_perf as assess_clf_perf_xgb
 from imblearn.over_sampling import RandomOverSampler
 
 # Modelling
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
 
 from lib.model import bootstrap_fmt, paired_bootstrap_fmt, delong_fmt
+import pickle
 
+
+def scaled_brier_score(y_true, y_prob):
+    brier_score = brier_score_loss(y_true, y_prob)
+    prevalence = y_true.sum()/len(y_true)
+    return 1 - brier_score/prevalence
 
 def get_net_benefit(y_true, y_prob, threshold):
     y_pred = (y_prob >= threshold).astype(int)
@@ -127,11 +136,6 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1):
     threshold_base = get_optimal_threshold(y_true, y_prob_base)
     threshold_fb = get_optimal_threshold(y_true, y_prob)
 
-
-    def scaled_brier_score(y_true, y_prob):
-        brier_score = brier_score_loss(y_true, y_prob)
-        prevalence = y_true.sum()/len(y_true)
-        return 1 - brier_score/prevalence
     
     def accuracy_score_modified(y_true, y_prob, threshold=0.5): 
         return accuracy_score(y_true, (y_prob >= threshold).astype(int))
@@ -151,10 +155,6 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1):
         'F1 Score': f1_score_modified,
         'ROC AUC Score': roc_auc_score,
         'Brier Score': brier_score_loss,
-        'Brier Skill Score (BSS)': scaled_brier_score
-    }
-    core_metric_dict = {
-        'ROC AUC Score': roc_auc_score,
         'Brier Skill Score (BSS)': scaled_brier_score
     }
 
@@ -266,13 +266,108 @@ def create_mdl_xgb(X_train, y_train, X_test, imb_data = False,
     clf.fit(X_train, y_train)
 
     print(clf.best_score_)
-    print(clf.best_params_)
+    best_params = clf.best_params_
+    print(best_params)
     # Get the best estimator
     clf = clf.best_estimator_
 
     y_proba = clf.predict_proba(X_test)[:,1]
 
-    return clf, y_proba
+    ### evaluate the stability of performance and shap importance across CV folds (train set) ###
+    impt_cv, perf_cv = eval_xgb_cv(X_train, y_train, best_params, n_splits = 5)
+    ### final feature importance and shap values in test set using the clf fit on entire train set ###
+    explainer = shap.TreeExplainer(clf)
+    shap_vals = explainer.shap_values(X_test)
+    # compute mean abs and signed shap values
+    mean_abs = np.mean(np.abs(shap_vals), axis=0)
+    mean_shap = np.mean(shap_vals, axis=0)
+    impt = pd.DataFrame({
+        "feature": X_train.columns,
+        "mean_abs_shap_test": mean_abs,
+        'mean_signed_shap_test': mean_shap}).sort_values('mean_abs_shap_test', ascending=False)
+    # merge with the shap values from cv folds
+    impt = impt.merge(impt_cv, on = 'feature')
+
+    
+    return clf, y_proba, impt, perf_cv
+
+def eval_xgb_cv(X_train, y_train, params, n_splits = 5):
+    """
+    Evaluate the stability of """
+    skf = StratifiedKFold(n_splits = n_splits, shuffle=True, random_state=42)
+
+
+    auc_scores = []
+    bss = []
+    fold_importances = []
+    fold_ranks = []
+
+    for fold, (tr_idx, val_idx) in enumerate(skf.split(X_train, y_train)):
+        X_tr, X_val = X_train.iloc[tr_idx], X_train.iloc[val_idx]
+        y_tr, y_val = y_train.iloc[tr_idx], y_train.iloc[val_idx]
+
+        model = xgb.XGBClassifier(**params)
+        model.fit(X_tr, y_tr)
+
+        # --- Performance ---
+        y_pred = model.predict_proba(X_val)[:, 1]
+        auc_scores.append(roc_auc_score(y_val, y_pred))
+        bss.append(scaled_brier_score(y_val, y_pred))
+
+        # --- SHAP on held-out fold ---
+        explainer = shap.TreeExplainer(model)
+        shap_vals = explainer.shap_values(X_val)
+
+        mean_abs = np.mean(np.abs(shap_vals), axis=0)
+        fold_importances.append(mean_abs)
+
+        fold_ranks.append(
+            pd.Series(mean_abs, index=X_train.columns).rank(ascending=False)
+        )
+    
+    ###### evaluate stability of such metrics ######
+    # Performance
+    cv_auc_mean = np.mean(auc_scores)
+    cv_auc_sd = np.std(auc_scores)
+    cv_bss_mean = np.mean(bss)
+    cv_bss_sd = np.std(bss)
+
+    # Importance magnitude stability
+    importances = np.vstack(fold_importances)
+
+    mean_importance = np.mean(importances, axis=0)
+    sd_importance = np.std(importances, axis=0)
+    cv_importance = sd_importance / mean_importance  # coefficient of variation
+
+    # Rank stability (Spearman)
+    rank_corrs = []
+    for i in range(n_splits):
+        for j in range(i+1, n_splits):
+            rho, _ = spearmanr(fold_ranks[i], fold_ranks[j])
+            rank_corrs.append(rho)
+
+    mean_rank_stability = np.mean(rank_corrs)
+
+    impt = pd.DataFrame({
+        "feature": X_train.columns,
+        "mean_abs_shap_cv": mean_importance,
+        "sd_abs_shap_cv": sd_importance,
+        "cv_abs_shap_cv": cv_importance
+    }).sort_values("mean_abs_shap_cv", ascending=False)
+
+    results_dict = pd.Series({
+        'cv_auc_mean': cv_auc_mean,
+        'cv_auc_sd': cv_auc_sd,
+        'cv_bss_mean': cv_bss_mean,
+        'cv_bss_sd': cv_bss_sd,
+        'mean_rank_stability': mean_rank_stability
+    })
+
+    print("CV AUROC:", cv_auc_mean, "+/-", cv_auc_sd)
+    print("Mean Rank Stability (Spearman):", mean_rank_stability)
+
+    return impt, results_dict
+
 
 def init_mdl(mdl_conf, input_dim, subcohort_cols):
     
@@ -482,14 +577,6 @@ def get_mapped_multiindex(feature_rename_map, original_indices):
         multi_idx_rename_map.update({ori_name: (group, new_name) for ori_name, new_name in rename_map.items()})
     return {k: v for k, v in multi_idx_rename_map.items() if k in original_indices}
 
-def format_p(p, alpha = 0.05):
-    if p < 0.001:
-        return r"$<0.001*$"
-    elif p <= alpha:
-        return f"{p:.3f}*"
-    else:
-        return f"{p:.3f}"
-
 def format_reg_results(df, subcohort, rename_map = None, multiindex = False, alpha = 0.05):
 
     df_fmt = df.copy()
@@ -600,7 +687,8 @@ def make_mdl_df_static(cohort,
     df = df[['person_id', 'index_date'] + subcohort_cols + features].dropna(subset = features)
 
     # change stpes to units of 1000 for easier interpretation
-    df['steps_mean'] = df['steps_mean']/1000
+    if 'steps_mean' in df.columns:
+        df['steps_mean'] = df['steps_mean']/1000
 
     # only baseline_only is true, don't use the sumstats features
     if baseline_only:
@@ -613,6 +701,37 @@ def make_mdl_df_static(cohort,
     df.loc[test_idx, 'train_test_label'] = 'test'
     
     return df, features
+
+def create_comp_df_xgb(xgb_res, subcohort_cols, output_folder):
+
+    # cross validated performance metrics
+    cv_perf = zip(subcohort_cols, [x[1] for x in xgb_res])
+    cv_perf = pd.DataFrame(dict(cv_perf))
+    cv_perf.to_csv(f"{output_folder}cv_perf.csv")
+
+    # re-format and save as latex
+    cv_perf = cv_perf.transpose()
+    cv_perf['ROC AUC'] = cv_perf.apply(lambda df: 
+                f"${float(df['cv_auc_mean']):.3f} \pm {float(df['cv_auc_sd']):.3f}$", axis=1)
+    cv_perf['BSS'] = cv_perf.apply(lambda df: 
+                f"${float(df['cv_bss_mean']):.3f} \pm {float(df['cv_bss_sd']):.3f}$", axis=1)
+    cv_perf['Mean rank stability'] = cv_perf['mean_rank_stability']
+    latex_str = cv_perf[['ROC AUC', 'BSS', 'Mean rank stability']].to_latex(
+                None,
+                float_format="%.3f",
+                caption = 'Performance stability of XGB model using 5-fold CV',
+                label = 'tab:xgb_cv_perf'
+            )
+    with open(f"{output_folder}cv_perf.tex", 'w') as f:
+        f.write(latex_str)
+
+    # Compare results across all cohorts for xgb
+    comps = zip(subcohort_cols, [x[0] for x in xgb_res])
+    for sub, comp_df in comps:
+        comp_df.to_csv(f"{output_folder}{sub}.csv", index=False)
+
+    return
+
 
 
 def create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, output_folder):
@@ -883,6 +1002,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
 
         logreg_res = [] # df for aggregating logreg results (coefficients)
         logreg_metrics = [] # for aggregating logreg metrics
+        xgb_res = [] # for aggregating xgb results
         xgb_metrics = [] # for aggregating xgb metrics
         # Initialise figure to plot everything on the same chart
         fig1, axs1 = plt.subplots(len(subcohort_cols), 2, figsize=(8, 22))
@@ -950,7 +1070,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
             # XGBoost model
             ########################
             # XGB model full
-            clf, y_proba_xgb = create_mdl_xgb(X_train, y_train, X_test, imb_data = False,
+            clf, y_proba_xgb, impt, perf_cv = create_mdl_xgb(X_train, y_train, X_test, imb_data = False,
                                             scale_pos_weight = scale_pos_weight)
             assess_clf_perf_xgb(clf, X_test, y_test, 
                                 f'{results_folder_xgb}/{subcohort}/',
@@ -958,7 +1078,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
                                 feature_rename_map = None,
                                 labels = ['Negative (0)', 'Positive (1)'])
             ### XGB model base
-            clf, y_proba_xgb_base = create_mdl_xgb(X_train_base, y_train, X_test_base, imb_data = False,
+            clf, y_proba_xgb_base, _, _ = create_mdl_xgb(X_train_base, y_train, X_test_base, imb_data = False,
                                                    scale_pos_weight = scale_pos_weight)
             assess_clf_perf_xgb(clf, X_test_base, y_test, 
                                 f'{results_folder_xgb_base}/{subcohort}/',
@@ -970,6 +1090,8 @@ def create_logreg_and_xgb_mdl_comp(cohort,
                                                     f"{subcohort.replace('subcohort_', '')}", 
                                                     axs1[i, 1])
             xgb_metrics.append(xgb_metric)
+            xgb_res.append((impt, perf_cv))
+            print(xgb_res)
 
             # Plot calibration curve and decision curve
             plot_calibration_curve(y_test, {'LogReg': y_proba_logreg,
@@ -990,6 +1112,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
 
         ### comparison across subcohorts - LogReg coefficients
         create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, results_folder_logreg)
+        create_comp_df_xgb(xgb_res, subcohort_cols, results_folder_xgb)
         ### Save comparison figure
         fig1.tight_layout()
         fig2.tight_layout()

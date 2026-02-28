@@ -132,15 +132,32 @@ total_cohort:
                         'minute_asleep', 
                         'sleep_efficiency',
                         'minute_after_wakeup', 
-                        # 'minute_awake', 
-                        # 'minute_deep',
-                        # 'minute_light', 
-                        # 'minute_rem', 
-                        # 'minute_wake', 
+                         
+                        'minute_deep',
+                        'minute_light', 
+                        'minute_rem', 
+                        'minute_wake', 
+
                         'deep_perc',
                         'rem_perc',
+                        'light_perc',
                         'wake_perc',
-                        'nap_min']
+                        'nap_min',
+                        'fat_burn_hr_to_light_active_ratio',
+                        'cardio_hr_to_fairly_active_ratio',
+                        'peak_hr_to_very_active_ratio']
+  
+  rmssd_features: ['minute_light',
+                  'minute_deep',
+                  'minute_rem',
+                  'minute_wake',
+                  'minute_in_bed',
+                  'sleep_efficiency',
+                  'minute_asleep',
+                  'light_perc',
+                  'deep_perc',
+                  'rem_perc',
+                  'wake_perc']
 
   get_additional_sleep_feat: False
   additional_sleep_features_path_pattern: 'data/02_intermediate/sleep_features_v2/sleep_feature_df_20250623_{i}.csv'
