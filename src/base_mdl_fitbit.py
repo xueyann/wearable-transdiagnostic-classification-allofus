@@ -110,20 +110,7 @@ def plot_calibration_curve(y_true, y_prob_dict, ax, title = "Calibration Curve")
 
     return ax 
 
-def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1): 
-    """
-    Docstring for get_clf_metrics
-    
-    :param y_true: Description
-    :param y_prob_base: predicted probability from base model
-    :param y_prob: predicted probability from full model
-    :param mdl_name: Description
-    :param ax1: axes where probability density will be plotted
-    :param ax2: axes where calibration curve will be plotted
-    :param threshold: Description
-
-
-    """
+def get_perf_diff(y_true, y_prob_base, y_prob):
 
     def get_optimal_threshold(y, probs):
         precision, recall, thresholds = precision_recall_curve(y, probs)
@@ -147,7 +134,6 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1):
         return f1_score(y_true, (y_prob >= threshold).astype(int))
 
 
-
     metric_dict = {
         'Accuracy': accuracy_score_modified,
         'Precision': precision_score_modified,
@@ -168,6 +154,37 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1):
     perf_dict_diff_p = {metric: paired_bootstrap_fmt(y_true, y_prob_base, y_prob, func) \
                         if metric != 'ROC AUC Score' else delong_fmt(y_true, y_prob_base, y_prob) \
                         for metric, func in metric_dict.items()}
+    
+    return perf_dict_base, perf_dict, perf_dict_diff_p
+
+def comp_perf_logreg_xgb(y_true, y_prob_logreg, y_prob_xgb, mdl_name):
+    _, _, perf_dict_diff_p = get_perf_diff(y_true, y_prob_logreg, y_prob_xgb)
+
+    perf = pd.concat([pd.Series({k:v[0] for k,v in perf_dict_diff_p.items()}),
+                      pd.Series({k:v[1] for k,v in perf_dict_diff_p.items()})],
+                      axis = 1,
+                      keys = [(mdl_name, 'Difference (95% CI)'),
+                              (mdl_name, 'p-value')])
+
+    return perf
+    
+
+def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1): 
+    """
+    Docstring for get_clf_metrics
+    
+    :param y_true: Description
+    :param y_prob_base: predicted probability from base model
+    :param y_prob: predicted probability from full model
+    :param mdl_name: Description
+    :param ax1: axes where probability density will be plotted
+    :param ax2: axes where calibration curve will be plotted
+    :param threshold: Description
+
+
+    """
+
+    perf_dict_base, perf_dict, perf_dict_diff_p = get_perf_diff(y_true, y_prob_base, y_prob)
 
     # convert to pandas series
     perf = pd.concat([pd.Series(perf_dict_base), 
@@ -771,6 +788,7 @@ def create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, output_folder):
 
 
 def create_metric_comp(logreg_metrics, xgb_metrics,
+                       logreg_xgb_metrics_comp,
                     subcohort_cols, output_folder):
 
     def concat_helper(metrics):
@@ -779,16 +797,20 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     # Concatenate everything
     logreg_metrics = concat_helper(logreg_metrics)
     xgb_metrics = concat_helper(xgb_metrics)
-    print(logreg_metrics)
+    logreg_xgb_metrics_comp = concat_helper(logreg_xgb_metrics_comp)
+    print(logreg_xgb_metrics_comp)
 
     logreg_metrics.to_csv(f"{output_folder}/logreg_metrics.csv", index=True)
     xgb_metrics.to_csv(f"{output_folder}/xgb_metrics.csv", index=True)
+    logreg_xgb_metrics_comp.to_csv(f"{output_folder}/logreg_xgb_metrics_comp.csv", index=True)
 
     # Combine and index them using multiindex
-    df = pd.concat([logreg_metrics, xgb_metrics], 
+    df = pd.concat([logreg_metrics, xgb_metrics, logreg_xgb_metrics_comp], 
                    axis = 1, 
                    keys = ['LogReg', 
-                            'XGBoost'])
+                            'XGBoost',
+                            'XGB vs LogReg Difference'
+                            ])
     # ordering
     df = df.swaplevel(0, 1, axis=1)
 
@@ -825,8 +847,9 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
 
 
     ####### Output just the key performance metrics with p-value #######
-    core_perf = df.swaplevel(0, 2, axis=1).loc[['ROC AUC Score', 'Brier Skill Score (BSS)'], \
-            ['Difference (95% CI)', 'p-value']].swaplevel(0, 2, axis=1).transpose().unstack(2)
+    core_perf = df.swaplevel(0, 1, axis=1)[['LogReg', 'XGBoost']].swaplevel(0, 1, axis=1)\
+                .swaplevel(0, 2, axis=1).loc[['ROC AUC Score', 'Brier Skill Score (BSS)'], \
+                ['Difference (95% CI)', 'p-value']].swaplevel(0, 2, axis=1).transpose().unstack(2)
 
     core_perf_latex_str = core_perf.to_latex(None,
                             escape=True,
@@ -839,6 +862,25 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
                         )
     with open(f'{output_folder}/core_static_mdl_perf.tex', 'w') as f:
         f.write(core_perf_latex_str)
+    
+    ####### Output just xgb vs logreg difference #######
+    core_diff = df.swaplevel(0, 1, axis=1)[['XGB vs LogReg Difference']].swaplevel(0, 1, axis=1)\
+                .swaplevel(0, 2, axis=1).loc[['ROC AUC Score', 'Brier Skill Score (BSS)'], \
+                ['Difference (95% CI)', 'p-value']].swaplevel(0, 2, axis=1).transpose().unstack(2)
+    core_diff = core_diff.droplevel(1)
+    print(core_diff)
+
+    core_diff_latex_str = core_diff.to_latex(None,
+                            escape=True,
+                            float_format="%.3f",
+                            longtable = True,
+                            bold_rows = True,
+                            multicolumn_format = 'c',
+                            caption = 'Difference in performance between XGBoost and Logistic Regression model (95\% CI)',
+                            label = 'tab:coreclfdiff'
+                        )
+    with open(f'{output_folder}/core_xgb_logreg_diff.tex', 'w') as f:
+        f.write(core_diff_latex_str)
 
 
     ####### Plotting just ROC AUC and BSS to visualise key metrics #######
@@ -1004,6 +1046,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
         logreg_metrics = [] # for aggregating logreg metrics
         xgb_res = [] # for aggregating xgb results
         xgb_metrics = [] # for aggregating xgb metrics
+        logreg_xgb_metrics_comp = [] # compare diff between logreg and xgb
         # Initialise figure to plot everything on the same chart
         fig1, axs1 = plt.subplots(len(subcohort_cols), 2, figsize=(8, 22))
         fig2, axs2 = plt.subplots(3, 3, figsize=(12, 12))
@@ -1093,6 +1136,11 @@ def create_logreg_and_xgb_mdl_comp(cohort,
             xgb_res.append((impt, perf_cv))
             print(xgb_res)
 
+            # compare performance of xgb against logreg
+            logreg_xgb_diff = comp_perf_logreg_xgb(y_test, y_proba_logreg, y_proba_xgb,
+                                                f"{subcohort.replace('subcohort_', '')}")
+            logreg_xgb_metrics_comp.append(logreg_xgb_diff)
+
             # Plot calibration curve and decision curve
             plot_calibration_curve(y_test, {'LogReg': y_proba_logreg,
                                         'XGBoost': y_proba_xgb}, 
@@ -1113,6 +1161,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
         ### comparison across subcohorts - LogReg coefficients
         create_comp_df_logreg(logreg_res, idx_map, subcohort_cols, results_folder_logreg)
         create_comp_df_xgb(xgb_res, subcohort_cols, results_folder_xgb)
+
         ### Save comparison figure
         fig1.tight_layout()
         fig2.tight_layout()
@@ -1121,7 +1170,7 @@ def create_logreg_and_xgb_mdl_comp(cohort,
         fig2.savefig(fig2_path, dpi = 300)
         fig3.savefig(fig3_path, dpi = 300)
 
-        return logreg_metrics, xgb_metrics
+        return logreg_metrics, xgb_metrics, logreg_xgb_metrics_comp
 
 
 def main():
@@ -1182,7 +1231,7 @@ def main():
     if config['xgb_run']:
 
         # Model with just baseline features
-        logreg_metrics, xgb_metrics = create_logreg_and_xgb_mdl_comp(cohort, 
+        logreg_metrics, xgb_metrics, logreg_xgb_metrics_comp = create_logreg_and_xgb_mdl_comp(cohort, 
                                                                     survey_df, 
                                                                     time_series_sumstats,
                                                                     time_series_features,
@@ -1206,6 +1255,7 @@ def main():
 
         create_metric_comp(logreg_metrics,
                            xgb_metrics,
+                           logreg_xgb_metrics_comp,
                            subcohort_cols, 
                            results_folder)
         # save a copy of the config

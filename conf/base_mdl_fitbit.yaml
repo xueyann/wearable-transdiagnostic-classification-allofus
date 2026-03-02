@@ -70,7 +70,7 @@ time_series_features: ['fat_burn_min',
                         # 'minute_awake', 
                         # 'deep_perc',
                         # 'rem_perc',
-                        # 'wake_perc',
+                        # 'wake_perc',s
                         'minute_wake',
                         'minute_light',
                         'minute_deep',
@@ -90,7 +90,7 @@ rmssd_features: [
                   # 'rem_perc',
                   # 'light_perc'
                   ]
-results_folder: 'results/base_mdl_20260228_v4_hr/'
+results_folder: 'results/base_mdl_20260302/'
 
 
 excl_vars_ts: ['out_of_range_min', # we alr know this through fat burn minutes
