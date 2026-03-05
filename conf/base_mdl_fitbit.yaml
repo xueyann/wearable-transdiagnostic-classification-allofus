@@ -55,7 +55,8 @@ survey_features: ['binge_drinking_freq_Daily',
                   'smoke_freq_Every Day',
                   'smoke_freq_Unknown']
 
-time_series_features: ['fat_burn_min', 
+time_series_features: [
+                        'fat_burn_min', 
                         'cardio_min', 
                         'peak_min',
 
@@ -63,6 +64,7 @@ time_series_features: ['fat_burn_min',
                         'lightly_active_minutes', 
                         'steps', 
                         'very_active_minutes', 
+
                         # 'minute_in_bed',
                         # 'minute_asleep', 
                         # 'sleep_efficiency',
@@ -81,17 +83,17 @@ time_series_features: ['fat_burn_min',
                         # 'peak_hr_to_very_active_ratio'
                         ]
 rmssd_features: [
-                  # 'minute_in_bed',
                   'minute_wake',
                   'minute_light',
                   'minute_deep',
                   'minute_rem'
+
+                  # 'minute_in_bed',
                   # 'deep_perc',
                   # 'rem_perc',
                   # 'light_perc'
                   ]
-results_folder: 'results/base_mdl_20260302/'
-
+results_folder: 'results/base_mdl_20260304_uniform_calibration/'
 
 excl_vars_ts: ['out_of_range_min', # we alr know this through fat burn minutes
                 'sedentary_minutes',
@@ -202,7 +204,7 @@ feature_rename_map: {
       'steps_mean': 'Steps (mean) every thousand increase',
       'steps_std': 'Steps (STD)'
     },
-    'HR & Activity interaction': {
+    'HR and Activity interaction': {
       'fat_burn_hr_to_light_active_ratio_mean': 'Fat burn HR to Lightly active minutes ratio (mean)',
       'fat_burn_hr_to_light_active_ratio_std': 'Fat burn HR to Lightly active minutes ratio (STD)',
       'cardio_hr_to_fairly_active_ratio_mean': 'Cardio HR to Fairly active minutes ratio (mean)',

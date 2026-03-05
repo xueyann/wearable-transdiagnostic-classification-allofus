@@ -150,7 +150,7 @@ def get_perf_diff(y_true, y_prob_base, y_prob):
                             bootstrap_fmt(y_true, y_prob_base, func) for metric, func in metric_dict.items()}
     perf_dict = {metric: bootstrap_fmt(y_true, y_prob, partial(func, threshold = threshold_fb)) \
                             if metric in ['Accuracy', 'Precision', 'Recall', 'F1 Score'] else \
-                            bootstrap_fmt(y_true, y_prob_base, func) for metric, func in metric_dict.items()}
+                            bootstrap_fmt(y_true, y_prob, func) for metric, func in metric_dict.items()}
     perf_dict_diff_p = {metric: paired_bootstrap_fmt(y_true, y_prob_base, y_prob, func) \
                         if metric != 'ROC AUC Score' else delong_fmt(y_true, y_prob_base, y_prob) \
                         for metric, func in metric_dict.items()}
@@ -250,8 +250,13 @@ def create_logreg_mdl(X_train, X_test, y_train, y_test,
     return df_fmt, idx_map, y_proba
 
 
-def create_mdl_xgb(X_train, y_train, X_test, imb_data = False,
-                   scale_pos_weight = False):
+def create_mdl_xgb(X_train, y_train, X_test, 
+                   subcohort,
+                   savefolder, 
+                   imb_data = False,
+                   scale_pos_weight = False, 
+                   rename_map = None, 
+                   multiindex=False):
 
     if imb_data:
         print('Applying SMOTE to balance the two classes...')
@@ -304,8 +309,24 @@ def create_mdl_xgb(X_train, y_train, X_test, imb_data = False,
         'mean_signed_shap_test': mean_shap}).sort_values('mean_abs_shap_test', ascending=False)
     # merge with the shap values from cv folds
     impt = impt.merge(impt_cv, on = 'feature')
+    impt = impt.set_index('feature')
 
+     # Optional: nicer variable names, multiindex to include
+    if rename_map is not None:
+        print(impt)
+        impt, _ = rename_index(impt, rename_map, multiindex=multiindex)
     
+    # save importance
+    impt.to_csv(f"{savefolder}{subcohort}.csv", index=True)
+    # save as latex
+    impt.to_latex(
+        f"{savefolder}{subcohort}.tex",
+        escape = False,
+        float_format="%.3f",
+        column_format="lrrrrr",
+        caption=f"Absolute mean SHAP values of subcohort {subcohort} with 95\% confidence interval"
+    )
+
     return clf, y_proba, impt, perf_cv
 
 def eval_xgb_cv(X_train, y_train, params, n_splits = 5):
@@ -587,6 +608,23 @@ def get_logreg_results(results, alpha = 0.05):
     df['CI_upper'] = np.round(df['CI_upper'], 3)
     return df
 
+
+def rename_index(df, rename_map, multiindex=False):
+    if multiindex:
+        idx_map = get_mapped_multiindex(rename_map, df.index)
+    else:
+        idx_map = {k: v for k, v in rename_map.items() if k in df.index} # simply filter using existing index
+    # Sort using the order of the new indices
+    # print(list(idx_map.keys()))
+    df = df.loc[list(idx_map.keys())]
+    # set index
+    if multiindex:
+        df.index = pd.MultiIndex.from_tuples(list(idx_map.values()))
+    else:
+        df.index = idx_map.values
+    
+    return df, idx_map
+
 def get_mapped_multiindex(feature_rename_map, original_indices):
     """new index will follow the order in feature_rename_map"""
     multi_idx_rename_map = {}
@@ -606,19 +644,7 @@ def format_reg_results(df, subcohort, rename_map = None, multiindex = False, alp
 
     # Optional: nicer variable names, multiindex to include
     if rename_map is not None:
-        # Get the dictionary mapping from old to new indices, sort df_fmt using the order specified in new indice mapping
-        if multiindex:
-            idx_map = get_mapped_multiindex(rename_map, df_fmt.index)
-        else:
-            idx_map = {k: v for k, v in rename_map.items() if k in df_fmt.index} # simply filter using existing index
-        # Sort using the order of the new indices
-        # print(list(idx_map.keys()))
-        df_fmt = df_fmt.loc[list(idx_map.keys())]
-        # set index
-        if multiindex:
-            df_fmt.index = pd.MultiIndex.from_tuples(list(idx_map.values()))
-        else:
-            df_fmt.index = idx_map.values
+        df_fmt, idx_map = rename_index(df_fmt, rename_map, multiindex=multiindex)
         
     # # save the variables that are significant
     # df_fmt_sig_idx = df_fmt.loc[df_fmt['p'] <= alpha].index
@@ -733,19 +759,37 @@ def create_comp_df_xgb(xgb_res, subcohort_cols, output_folder):
     cv_perf['BSS'] = cv_perf.apply(lambda df: 
                 f"${float(df['cv_bss_mean']):.3f} \pm {float(df['cv_bss_sd']):.3f}$", axis=1)
     cv_perf['Mean rank stability'] = cv_perf['mean_rank_stability']
+    cv_perf.index = [x.replace('subcohort_', '') for x in cv_perf.index]
     latex_str = cv_perf[['ROC AUC', 'BSS', 'Mean rank stability']].to_latex(
                 None,
-                float_format="%.3f",
+                escape = False,
+                float_format = "%.3f",
                 caption = 'Performance stability of XGB model using 5-fold CV',
                 label = 'tab:xgb_cv_perf'
             )
     with open(f"{output_folder}cv_perf.tex", 'w') as f:
         f.write(latex_str)
 
-    # Compare results across all cohorts for xgb
-    comps = zip(subcohort_cols, [x[0] for x in xgb_res])
-    for sub, comp_df in comps:
-        comp_df.to_csv(f"{output_folder}{sub}.csv", index=False)
+    # absolute mean shap comparison
+    shap_comps = zip(subcohort_cols, [x[0] for x in xgb_res])
+    abs_shaps = []
+    for sub, shap_sub in shap_comps:
+        shap_sub = shap_sub[['mean_abs_shap_test']].rename(
+            columns = {'mean_abs_shap_test': sub.replace('subcohort_', '')}
+        )
+        abs_shaps.append(shap_sub)
+    abs_shaps = reduce(lambda x, y: x.join(y), abs_shaps)
+    print(abs_shaps)
+
+    # save to latex
+    abs_shaps.to_latex(
+        f"{output_folder}abs_mean_shap.tex",
+        escape = False,
+        float_format = "%.3f",
+        caption = 'Absolute Mean SHAP values across subcohorts on test dataset',
+        label = 'tab:xgb_abs_mean_shap'
+    )
+
 
     return
 
@@ -830,7 +874,7 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     df_latex = df.stack(level=0).swaplevel(0 , 1, axis=0).sort_index(level=0).loc[idx_ordered].copy()
 
     latex_str = df_latex.to_latex(None,
-                            escape=True,
+                            escape=False,
                             float_format="%.3f",
                             longtable = True,
                             bold_rows = True,
@@ -840,6 +884,7 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
                         )
     
     latex_str = r'\begin{landscape}\footnotesize' + latex_str + r'\end{landscape}'
+    latex_str = latex_str.replace(r"(95% CI)", r"(95\% CI)")
 
     
     with open(f'{output_folder}/static_mdl_perf.tex', 'w') as f:
@@ -850,9 +895,11 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     core_perf = df.swaplevel(0, 1, axis=1)[['LogReg', 'XGBoost']].swaplevel(0, 1, axis=1)\
                 .swaplevel(0, 2, axis=1).loc[['ROC AUC Score', 'Brier Skill Score (BSS)'], \
                 ['Difference (95% CI)', 'p-value']].swaplevel(0, 2, axis=1).transpose().unstack(2)
+    core_perf = core_perf.loc[[x.replace('subcohort_', '') for x in subcohort_cols]]
+    core_perf.to_csv(f'{output_folder}/core_static_mdl_perf.csv')
 
     core_perf_latex_str = core_perf.to_latex(None,
-                            escape=True,
+                            escape=False,
                             float_format="%.3f",
                             longtable = True,
                             bold_rows = True,
@@ -860,6 +907,7 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
                             caption = 'Improvement in Discrimination (AUROC) and Calibration (BSS) after incorporating FitBit features (95\% CI)',
                             label = 'tab:coreclfmetrics'
                         )
+    core_perf_latex_str = core_perf_latex_str.replace(r"(95% CI)", r"(95\% CI)")
     with open(f'{output_folder}/core_static_mdl_perf.tex', 'w') as f:
         f.write(core_perf_latex_str)
     
@@ -867,11 +915,13 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     core_diff = df.swaplevel(0, 1, axis=1)[['XGB vs LogReg Difference']].swaplevel(0, 1, axis=1)\
                 .swaplevel(0, 2, axis=1).loc[['ROC AUC Score', 'Brier Skill Score (BSS)'], \
                 ['Difference (95% CI)', 'p-value']].swaplevel(0, 2, axis=1).transpose().unstack(2)
-    core_diff = core_diff.droplevel(1)
+    # order the index
+    core_diff = core_diff.droplevel(1).loc[[x.replace('subcohort_', '') for x in subcohort_cols]]
     print(core_diff)
+    core_diff.to_csv(f'{output_folder}/core_xgb_logreg_diff.csv')
 
     core_diff_latex_str = core_diff.to_latex(None,
-                            escape=True,
+                            escape=False,
                             float_format="%.3f",
                             longtable = True,
                             bold_rows = True,
@@ -879,12 +929,14 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
                             caption = 'Difference in performance between XGBoost and Logistic Regression model (95\% CI)',
                             label = 'tab:coreclfdiff'
                         )
+    core_diff_latex_str = core_diff_latex_str.replace(r"(95% CI)", r"(95\% CI)")
     with open(f'{output_folder}/core_xgb_logreg_diff.tex', 'w') as f:
         f.write(core_diff_latex_str)
 
 
     ####### Plotting just ROC AUC and BSS to visualise key metrics #######
-    df = df.loc[['ROC AUC Score', 'Brier Skill Score (BSS)']]\
+    df = df.swaplevel(0, 1, axis=1)[['LogReg', 'XGBoost']].swaplevel(0, 1, axis=1)\
+        .loc[['ROC AUC Score', 'Brier Skill Score (BSS)']]\
         .stack(level=0).swaplevel(0 , 1, axis=0).sort_index(level=0).unstack(level=1)\
         .map(lambda x: list(map(float, re.findall(r"-?\d*\.?\d+", x)))) # separate out confidence intervals
     
@@ -1113,16 +1165,26 @@ def create_logreg_and_xgb_mdl_comp(cohort,
             # XGBoost model
             ########################
             # XGB model full
-            clf, y_proba_xgb, impt, perf_cv = create_mdl_xgb(X_train, y_train, X_test, imb_data = False,
-                                            scale_pos_weight = scale_pos_weight)
+            clf, y_proba_xgb, impt, perf_cv = create_mdl_xgb(X_train, y_train, X_test, 
+                                                            subcohort,
+                                                            results_folder_xgb, 
+                                                            imb_data = False,
+                                                            scale_pos_weight = scale_pos_weight,
+                                                            rename_map = feature_rename_map,
+                                                            multiindex = True)
             assess_clf_perf_xgb(clf, X_test, y_test, 
                                 f'{results_folder_xgb}/{subcohort}/',
                                 features,
                                 feature_rename_map = None,
                                 labels = ['Negative (0)', 'Positive (1)'])
             ### XGB model base
-            clf, y_proba_xgb_base, _, _ = create_mdl_xgb(X_train_base, y_train, X_test_base, imb_data = False,
-                                                   scale_pos_weight = scale_pos_weight)
+            clf, y_proba_xgb_base, _, _ = create_mdl_xgb(X_train_base, y_train, X_test_base,
+                                                        subcohort,
+                                                        results_folder_xgb_base,
+                                                        imb_data = False,
+                                                        scale_pos_weight = scale_pos_weight, 
+                                                        rename_map = feature_rename_map,
+                                                        multiindex = True)
             assess_clf_perf_xgb(clf, X_test_base, y_test, 
                                 f'{results_folder_xgb_base}/{subcohort}/',
                                 features_base,
