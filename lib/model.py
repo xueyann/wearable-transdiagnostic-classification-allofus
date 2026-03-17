@@ -53,7 +53,7 @@ def fast_delong(predictions, labels):
     return aucs, s
 
 
-def delong_test(y_true, pred1, pred2, alternative="greater", alpha=0.05):
+def delong_test(y_true, pred1, pred2, alternative="two-sided", alpha=0.05):
     y_true, pred1, pred2 = np.array(y_true), np.array(pred1), np.array(pred2)
     preds = np.vstack([pred1, pred2])
     aucs, cov = fast_delong(preds, y_true)
@@ -131,7 +131,9 @@ def paired_bootstrap_fmt(y_true, y_proba1, y_proba2, func, n_bootstrap=1000, see
     return f"{res['mean']:.3f} ({res['ci_lower']:.3f} - {res['ci_upper']:.3f})"
 
 
-def paired_bootstrap(y_true, y_proba1, y_proba2, func, alpha = 0.05, n_bootstrap=1000, seed=42):
+def paired_bootstrap(y_true, y_proba1, y_proba2, func, 
+                     alpha = 0.05, n_bootstrap=1000, seed=42, 
+                     alternative = 'two-sided'):
     """
     y_true: array of true label (binary)
     y_proba1: predicted probabilities with the first model (null model)
@@ -164,31 +166,36 @@ def paired_bootstrap(y_true, y_proba1, y_proba2, func, alpha = 0.05, n_bootstrap
     # two sided CI still
     ci_lower, ci_upper = np.percentile(deltas, [(alpha*100)/2, 100-(alpha*100)/2])
 
-    # One-sided p-value (Model 2 > Model 1)
-    p_one_sided = np.mean(deltas <= 0)
+    # Two-sided p-value
+    if alternative == 'two-sided':
+        p = 2 * min(np.mean(deltas >= 0),
+                    np.mean(deltas <= 0))
+    elif alternative == 'greater':
+        p = np.mean(deltas >= 0)
+    elif alternative == 'less':
+        p = np.mean(deltas <= 0)
 
-    # one sided significance test: whether delta > 0, i.e mdl2 is better than mdl1
-    critical_val = np.percentile(deltas, alpha*100)
+    # # one sided significance test: whether delta > 0, i.e mdl2 is better than mdl1
+    # critical_val = np.percentile(deltas, alpha*100)
 
     return {
         "mean": deltas.mean(),
         "ci_lower": ci_lower,
         "ci_upper": ci_upper,
-        "p_value": p_one_sided, 
-        "significant": critical_val > 0
+        "p_value": p
     }
 
-def paired_bootstrap_fmt(y_true, y_proba1, y_proba2, func, n_bootstrap=1000, seed=42, alpha = 0.5):
+def paired_bootstrap_fmt(y_true, y_proba1, y_proba2, func, n_bootstrap=1000, seed=42, alpha = 0.05):
     res = paired_bootstrap(y_true, y_proba1, y_proba2, func, n_bootstrap=n_bootstrap, seed=seed, alpha=alpha)
 
     fmt_mean = f"{res['mean']:.3f} ({res['ci_lower']:.3f} - {res['ci_upper']:.3f})"
     fmt_p = format_p(res['p_value'], alpha = alpha)
     return fmt_mean, fmt_p
 
-def delong_fmt(y_true, y_proba1, y_proba2, alpha = 0.5):
+def delong_fmt(y_true, y_proba1, y_proba2, alpha = 0.05):
     """
     No function needed because it is specific to AUC ROC"""
-    res = delong_test(y_true, y_proba1, y_proba2, alternative="greater", alpha=0.05)
+    res = delong_test(y_true, y_proba1, y_proba2, alternative="greater", alpha=alpha)
     fmt_mean = f"{res['mean']:.3f} ({res['ci_lower']:.3f} - {res['ci_upper']:.3f})"
     fmt_p = format_p(res['p_value'], alpha = alpha)
     return fmt_mean, fmt_p

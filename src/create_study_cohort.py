@@ -412,7 +412,7 @@ def create_cohort(config):
     # # select only people with sleep streaks
     # cohort = cohort.loc[cohort['person_id'].isin(streaks['person_id'])]
     # print(f"Cohort size = {cohort.shape[0]} after filtering for 21 days of sleep streaks")
-    attrition['either a diagnosis assigned or in control cohort'] = cohort.shape[0]
+    # attrition['either a diagnosis assigned or in control cohort'] = cohort.shape[0]
 
     #### NOTE optional Get the streak closest to index date but after index date
     if config['streak_overlap']:
@@ -426,10 +426,7 @@ def create_cohort(config):
 
     # make sure only one line per person
     assert cohort.shape[0] == cohort['person_id'].nunique()
-
     print(cohort)
-
-
 
     ####### Get static features #######
     cohort = get_static_features(cohort,
@@ -450,9 +447,9 @@ def create_cohort(config):
     cohort_save_path = config['cohort_save_path']
     if not os.path.exists(os.path.dirname(cohort_save_path)):
         os.makedirs(os.path.dirname(cohort_save_path))
-    cohort.to_csv(cohort_save_path, index=False)
+    cohort.to_csv(cohort_save_path, index=True)
     # save attrition
-    pd.Series(attrition).to_csv(config['attrition_savepath'], index=False)
+    pd.Series(attrition).to_csv(config['attrition_savepath'], index=True)
 
     return cohort, streaks, fitbit_summary
 
@@ -501,17 +498,14 @@ def get_time_series_features(cohort, streaks, fitbit_summary, config):
     # save time series features
     fitbit_summary.to_csv(config['time_series_features_savepath'], index=False)
     # get sumstats
-    fitbit_summary = get_fitbit_sumstats(fitbit_summary, time_series_features)
+    fitbit_summary = get_fitbit_sumstats(fitbit_summary, time_series_features, config['rmssd_features'])
 
     fitbit_summary.to_csv(config['time_series_features_sumstats_savepath'], index=False)
     
     return
 
 def get_fitbit_sumstats(fitbit_summary, time_series_features, 
-                                        rmssd_features = ['minute_in_bed',
-                                                        'deep_perc',
-                                                        'rem_perc',
-                                                        'wake_perc']):
+                                        rmssd_features):
     ######### compute summary stats and save #########
     fitbit1 = fitbit_summary[['person_id'] + time_series_features].groupby('person_id').agg(
                             {c: ['mean', 'std'] for c in time_series_features})
@@ -537,6 +531,7 @@ def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_de
     df['sleep_efficiency'] = df['minute_asleep']/df['minute_in_bed']
     df['deep_perc'] = df['minute_deep']/df['minute_in_bed']
     df['rem_perc'] = df['minute_rem']/df['minute_in_bed']
+    df['light_perc'] = df['minute_light']/df['minute_in_bed']
     df['wake_perc'] = df['minute_wake']/df['minute_in_bed']
     df['fat_burn_hr_to_light_active_ratio'] = df['fat_burn_min']/df['lightly_active_minutes']
     df['cardio_hr_to_fairly_active_ratio'] = df['cardio_min']/df['fairly_active_minutes']

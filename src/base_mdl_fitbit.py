@@ -784,6 +784,7 @@ def create_comp_df_xgb(xgb_res, subcohort_cols, output_folder):
     # save to latex
     abs_shaps.to_latex(
         f"{output_folder}abs_mean_shap.tex",
+        longtable = True,
         escape = False,
         float_format = "%.3f",
         caption = 'Absolute Mean SHAP values across subcohorts on test dataset',

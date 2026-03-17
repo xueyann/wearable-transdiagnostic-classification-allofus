@@ -154,6 +154,7 @@ def main():
             >{\setstretch{0.9}}p{1.3cm}
             >{\setstretch{0.9}}p{1.3cm}
             >{\setstretch{0.9}}p{1.3cm}
+            >{\setstretch{0.9}}p{1.3cm}
             >{\setstretch{0.9}}p{1.3cm}""",
             longtable = True)
     with open(config['output_concise'], 'w') as f:
