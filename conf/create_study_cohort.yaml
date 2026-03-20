@@ -2,8 +2,9 @@ total_cohort:
   run: True
   person_df: 'data/01_raw/person_df_20250506.csv'
   condition_df: 'data/02_intermediate/condition_df_20250506_{i}.csv'
-  parent_phecode_removed_df: 'data/02_intermediate/study_cohorts_20251201/condition_df_parent_phecode_removed.parquet'
+  parent_phecode_removed_df: 'data/02_intermediate/study_cohorts_20251222/condition_df_parent_phecode_removed.parquet'
   parent_phecode_removed_avail: True
+  diag_alltime_savepath: 'data/02_intermediate/study_cohorts_20251222/diag_alltime.csv'
   drug_list: 'conf/drug_list.yaml'
   prescription_path: 'data/01_raw/drug_df_20250610_{i}.csv'
   icd_excl: 'conf/icd_excl.yaml'
@@ -23,8 +24,8 @@ total_cohort:
                         'thyroid_hormones',
                         'antithyroid_agents']
   osa_device_df: 'data/02_intermediate/osa_device_df_20250619.csv'
-  filter_by_medication: False
-  filter_by_osa_device: False
+  filter_by_medication: True
+  filter_by_osa_device: True
   condition_map: {
                   'Diabetes or abnormal glucose tolerance complicating pregnancy': 'Diabetes',
                   # 'Secondary diabetes mellitus': 'Diabetes',
@@ -88,12 +89,21 @@ total_cohort:
                     'Chronic obstructive asthma',
                     'Chronic obstructive asthma with exacerbation']
   }
+  recency_filter: {
+        'CVD': 10,
+        'Diabetes': 10,
+        'OSA': 3,
+        'MDD': 2,
+        'Anxiety': 2,
+        'ADHD': 3,
+        'Bipolar': 5
+    }
   excl_drug_df_available: True
-  excl_drug_savepath: 'data/02_intermediate/study_cohorts_20251201/hr_and_sleep_drugs.csv'
+  excl_drug_savepath: 'data/02_intermediate/study_cohorts_20251222/hr_and_sleep_drugs.csv'
   fitbit_summary_data: 'data/02_intermediate/fitbit_data_summary/'
   min_streak_length: 21
-  cohort_save_path: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
-  streak_save_path: 'data/02_intermediate/study_cohorts_20251222/streaks_20251222.csv'
+  cohort_save_path: 'data/02_intermediate/study_cohorts_20260225_clean_control/study_cohort_20260225.csv'
+  streak_save_path: 'data/02_intermediate/study_cohorts_20260225_clean_control/streaks_20260225.csv'
   physical_measurement_df: 'data/02_intermediate/physical_measurement_df_20250617.csv'
   # Features
   person_features: ['age', 'sex_male', 'race_nonwhite']
@@ -122,12 +132,33 @@ total_cohort:
                         'minute_asleep', 
                         'sleep_efficiency',
                         'minute_after_wakeup', 
-                        # 'minute_awake', 
+                         
                         'minute_deep',
                         'minute_light', 
                         'minute_rem', 
                         'minute_wake', 
-                        'nap_min']
+
+                        'deep_perc',
+                        'rem_perc',
+                        'light_perc',
+                        'wake_perc',
+                        'nap_min',
+                        'fat_burn_hr_to_light_active_ratio',
+                        'cardio_hr_to_fairly_active_ratio',
+                        'peak_hr_to_very_active_ratio']
+  
+  rmssd_features: ['minute_light',
+                  'minute_deep',
+                  'minute_rem',
+                  'minute_wake',
+                  'minute_in_bed',
+                  'sleep_efficiency',
+                  'minute_asleep',
+                  'light_perc',
+                  'deep_perc',
+                  'rem_perc',
+                  'wake_perc']
+
   get_additional_sleep_feat: False
   additional_sleep_features_path_pattern: 'data/02_intermediate/sleep_features_v2/sleep_feature_df_20250623_{i}.csv'
   additional_sleep_features: ['sleep_efficiency_percent', 
@@ -137,7 +168,7 @@ total_cohort:
                                     'rem_latency_min', 
                                     'rem_fragmentation',
                                     'sleep_onset_adjusted']
-  time_series_features_savepath: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features.csv'
-  time_series_features_sumstats_savepath: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
+  time_series_features_savepath: 'data/02_intermediate/study_cohorts_20260225_clean_control/fitbit_time_series_features.csv'
+  time_series_features_sumstats_savepath: 'data/02_intermediate/study_cohorts_20260225_clean_control/fitbit_time_series_features_sumstats.csv'
   sleep_onset_center: 22
-  attrition_savepath: 'data/02_intermediate/study_cohorts_20251222/attrition.csv'
+  attrition_savepath: 'data/02_intermediate/study_cohorts_20260225_clean_control/attrition.csv'

@@ -1,8 +1,9 @@
-cohort: 'data/02_intermediate/study_cohorts_20251222/study_cohort_20251222.csv'
+cohort: 'data/02_intermediate/study_cohorts_20260225/study_cohort_20260225.csv'
 # cohort: 'data/02_intermediate/study_cohorts_20251201/study_cohort_clean_control_20251211.csv'
-time_series_feature_df: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features.csv'
-time_series_sumstats: 'data/02_intermediate/study_cohorts_20251222/fitbit_time_series_features_sumstats.csv'
+time_series_feature_df: 'data/02_intermediate/study_cohorts_20260225/fitbit_time_series_features.csv'
+time_series_sumstats: 'data/02_intermediate/study_cohorts_20260225/fitbit_time_series_features_sumstats.csv'
 survey_df: 'data/02_intermediate/survey_df_20260113.csv'
+scale_pos_weight: False
 # ordinal_var_mapping:
 # # reference group 
 #   binge_drinking_freq:
@@ -54,32 +55,45 @@ survey_features: ['binge_drinking_freq_Daily',
                   'smoke_freq_Every Day',
                   'smoke_freq_Unknown']
 
-time_series_features: ['fat_burn_min', 
+time_series_features: [
+                        'fat_burn_min', 
                         'cardio_min', 
                         'peak_min',
-                        'out_of_range_min', 
-                        # 'activity_calories', 
-                        # 'calories_bmr', 
-                        'calories_out',
-                        # 'elevation', 
+
                         'fairly_active_minutes', 
-                        # 'floors',
                         'lightly_active_minutes', 
-                        'marginal_calories', 
-                        # 'sedentary_minutes',
                         'steps', 
                         'very_active_minutes', 
-                        'minute_in_bed',
-                        'minute_asleep', 
-                        'sleep_efficiency',
+
+                        # 'minute_in_bed',
+                        # 'minute_asleep', 
+                        # 'sleep_efficiency',
                         'minute_after_wakeup', 
                         # 'minute_awake', 
+                        # 'deep_perc',
+                        # 'rem_perc',
+                        # 'wake_perc',s
+                        'minute_wake',
+                        'minute_light',
                         'minute_deep',
-                        'minute_light', 
-                        'minute_rem', 
-                        'minute_wake', 
-                        'nap_min']
-results_folder: 'results/base_mdl_20260117/'
+                        'minute_rem',
+                        'nap_min',
+                        'fat_burn_hr_to_light_active_ratio',
+                        # 'cardio_hr_to_fairly_active_ratio',
+                        # 'peak_hr_to_very_active_ratio'
+                        ]
+rmssd_features: [
+                  'minute_wake',
+                  'minute_light',
+                  'minute_deep',
+                  'minute_rem'
+
+                  # 'minute_in_bed',
+                  # 'deep_perc',
+                  # 'rem_perc',
+                  # 'light_perc'
+                  ]
+results_folder: 'results/base_mdl_20260304_uniform_calibration/'
 
 excl_vars_ts: ['out_of_range_min', # we alr know this through fat burn minutes
                 'sedentary_minutes',
@@ -87,7 +101,8 @@ excl_vars_ts: ['out_of_range_min', # we alr know this through fat burn minutes
                 'marginal_calories', # keeping activity calories because marginal calories linked to height and weight and BMI
                 'minute_asleep', # not necessary since we have minute light, deep, wake
                 'sleep_efficiency', # info encoded in minute_wake
-                'minute_in_bed'
+                'cardio_hr_to_fairly_active_ratio', # too many missing values
+                'peak_hr_to_very_active_ratio' # too many missing values
              ]
 excl_vars_static: ['smoke_start_age', # since na value has been filled with 0, it is hard to interpret this variable in regression
                     'other_smoking' # exclude as less than 1%
@@ -189,23 +204,48 @@ feature_rename_map: {
       'steps_mean': 'Steps (mean) every thousand increase',
       'steps_std': 'Steps (STD)'
     },
+    'HR and Activity interaction': {
+      'fat_burn_hr_to_light_active_ratio_mean': 'Fat burn HR to Lightly active minutes ratio (mean)',
+      'fat_burn_hr_to_light_active_ratio_std': 'Fat burn HR to Lightly active minutes ratio (STD)',
+      'cardio_hr_to_fairly_active_ratio_mean': 'Cardio HR to Fairly active minutes ratio (mean)',
+      'cardio_hr_to_fairly_active_ratio_std': 'Cardio HR to Fairly active minutes ratio (STD)',
+      'peak_hr_to_very_active_ratio_mean': 'Peak HR to Very active minutes ratio (mean)',
+      'peak_hr_to_very_active_ratio_std': 'Peak HR to Very active minutes ratio (STD)'
+    },
     'Sleep': {
       'minute_in_bed_mean': 'Minutes in bed (mean)',
       'minute_in_bed_std': 'Minutes in bed (STD)',
-      'minute_asleep_mean': 'Minutes asleep (mean)',
-      'minute_asleep_std': 'Minutes asleep (STD)',
+      'minute_in_bed_rmssd': 'Minutes in bed (RMSSD)',
+      # 'minute_asleep_mean': 'Minutes asleep (mean)',
+      # 'minute_asleep_std': 'Minutes asleep (STD)',
       'sleep_efficiency_mean': 'Sleep efficiency (mean)',
       'sleep_efficiency_std': 'Sleep efficiency (STD)',
       'minute_after_wakeup_mean': 'Minutes in bed after wakeup (mean)',
       'minute_after_wakeup_std': 'Minutes in bed after wakeup (STD)',
       'minute_wake_mean': 'Wake minutes (mean)',
       'minute_wake_std': 'Wake minutes (STD)',
+      'minute_wake_rmssd': 'Wake minutes (RMSSD)',
       'minute_light_mean': 'Light sleep minutes (mean)',
       'minute_light_std': 'Light sleep minutes (STD)',
+      'minute_light_rmssd': 'Light sleep minutes (RMSSD)',
       'minute_deep_mean': 'Deep sleep minutes (mean)',
       'minute_deep_std': 'Deep sleep minutes (STD)',
+      'minute_deep_rmssd': 'Deep sleep minutes (RMSSD)',
       'minute_rem_mean': 'REM sleep minutes (mean)',
       'minute_rem_std': 'REM sleep minutes (STD)',
+      'minute_rem_rmssd': 'REM sleep minutes (RMSSD)',
+      'wake_perc_mean': 'Wake proportion (mean)',
+      'wake_perc_std': 'Wake proportion (STD)',
+      'wake_perc_rmssd': 'Wake proportion (RMSSD)',
+      'light_perc_mean': 'Light proportion (mean)',
+      'light_perc_std': 'Light proportion (STD)',
+      'light_perc_rmssd': 'Light proportion (RMSSD)',
+      'deep_perc_mean': 'Deep sleep proportion (mean)',
+      'deep_perc_std': 'Deep sleep proportion (STD)',
+      'deep_perc_rmssd': 'Deep sleep proportion (RMSSD)',
+      'rem_perc_mean': 'REM sleep proportion (mean)',
+      'rem_perc_std': 'REM sleep proportion (STD)',
+      'rem_perc_rmssd': 'REM sleep proportion (RMSSD)',
       'nap_min_mean': 'Nap minutes (mean)',
       'nap_min_std': 'Nap minutes (STD)'
     }
