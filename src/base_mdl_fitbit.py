@@ -110,18 +110,9 @@ def plot_calibration_curve(y_true, y_prob_dict, ax, title = "Calibration Curve")
 
     return ax 
 
-def get_perf_diff(y_true, y_prob_base, y_prob):
-
-    def get_optimal_threshold(y, probs):
-        precision, recall, thresholds = precision_recall_curve(y, probs)
-        f1 = 2 * (precision * recall) / (precision + recall + 1e-12)
-
-        best_idx = np.argmax(f1)
-        best_threshold = thresholds[best_idx]
-        return best_threshold
-
-    threshold_base = get_optimal_threshold(y_true, y_prob_base)
-    threshold_fb = get_optimal_threshold(y_true, y_prob)
+def get_perf_diff(y_true, y_prob_base, y_prob, 
+                  threshold_base = 0.5, 
+                  threshold_fb = 0.5):
 
     
     def accuracy_score_modified(y_true, y_prob, threshold=0.5): 
@@ -157,8 +148,10 @@ def get_perf_diff(y_true, y_prob_base, y_prob):
     
     return perf_dict_base, perf_dict, perf_dict_diff_p
 
-def comp_perf_logreg_xgb(y_true, y_prob_logreg, y_prob_xgb, mdl_name):
-    _, _, perf_dict_diff_p = get_perf_diff(y_true, y_prob_logreg, y_prob_xgb)
+def comp_perf_logreg_xgb(y_true, y_prob_logreg, y_prob_xgb, mdl_name, 
+                         threshold_logreg, threshold_xgb):
+    _, _, perf_dict_diff_p = get_perf_diff(y_true, y_prob_logreg, y_prob_xgb,
+                                           threshold_logreg, threshold_xgb)
 
     perf = pd.concat([pd.Series({k:v[0] for k,v in perf_dict_diff_p.items()}),
                       pd.Series({k:v[1] for k,v in perf_dict_diff_p.items()})],
@@ -169,7 +162,7 @@ def comp_perf_logreg_xgb(y_true, y_prob_logreg, y_prob_xgb, mdl_name):
     return perf
     
 
-def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1): 
+def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1, threshold_base, threshold_fb): 
     """
     Docstring for get_clf_metrics
     
@@ -184,7 +177,7 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1):
 
     """
 
-    perf_dict_base, perf_dict, perf_dict_diff_p = get_perf_diff(y_true, y_prob_base, y_prob)
+    perf_dict_base, perf_dict, perf_dict_diff_p = get_perf_diff(y_true, y_prob_base, y_prob, threshold_base, threshold_fb)
 
     # convert to pandas series
     perf = pd.concat([pd.Series(perf_dict_base), 
@@ -208,6 +201,13 @@ def get_clf_metrics(y_true, y_prob_base, y_prob, mdl_name, ax1):
 
     return perf, ax1
 
+def get_optimal_threshold(y, probs):
+    precision, recall, thresholds = precision_recall_curve(y, probs)
+    f1 = 2 * (precision * recall) / (precision + recall + 1e-12)
+
+    best_idx = np.argmax(f1)
+    best_threshold = thresholds[best_idx]
+    return best_threshold
 
 def create_logreg_mdl(X_train, X_test, y_train, y_test,
                       subcohort, features, feature_rename_map, output_folder, 
@@ -227,6 +227,10 @@ def create_logreg_mdl(X_train, X_test, y_train, y_test,
     else:
         clf = sm.Logit(y_train, X_train)
     results = clf.fit(maxiter = 350)
+
+    # Get the optimal threshold using training data only
+    optimal_threshold = get_optimal_threshold(y_train, results.predict(X_train))
+
     y_proba = results.predict(X_test)
     test_auc = roc_auc_score(y_test, y_proba)
     y_pred = (y_proba > 0.5).astype(int)
@@ -247,7 +251,7 @@ def create_logreg_mdl(X_train, X_test, y_train, y_test,
     with open(f"{output_folder}{subcohort}.tex", 'w') as f:
         f.write(latex)
     
-    return df_fmt, idx_map, y_proba
+    return df_fmt, idx_map, y_proba, optimal_threshold
 
 
 def create_mdl_xgb(X_train, y_train, X_test, 
@@ -293,6 +297,9 @@ def create_mdl_xgb(X_train, y_train, X_test,
     # Get the best estimator
     clf = clf.best_estimator_
 
+    # Get the optimal threshold using training data only
+    optimal_threshold = get_optimal_threshold(y_train, clf.predict_proba(X_train)[:,1])
+
     y_proba = clf.predict_proba(X_test)[:,1]
 
     ### evaluate the stability of performance and shap importance across CV folds (train set) ###
@@ -327,7 +334,7 @@ def create_mdl_xgb(X_train, y_train, X_test,
         caption=f"Absolute mean SHAP values of subcohort {subcohort} with 95\% confidence interval"
     )
 
-    return clf, y_proba, impt, perf_cv
+    return clf, y_proba, impt, perf_cv, optimal_threshold
 
 def eval_xgb_cv(X_train, y_train, params, n_splits = 5):
     """
@@ -1133,31 +1140,32 @@ def create_logreg_and_xgb_mdl_comp(cohort,
             # Logistic regression
             ########################
             # LogReg model full
-            logreg_res_fmt, idx_map, y_proba_logreg = create_logreg_mdl(sm.add_constant(X_train), 
-                                                                        sm.add_constant(X_test), 
-                                                                        y_train, 
-                                                                        y_test,
-                                                                        subcohort, 
-                                                                        features, 
-                                                                        feature_rename_map,
-                                                                        results_folder_logreg,
-                                                                        scale_pos_weight = scale_pos_weight) 
+            logreg_res_fmt, idx_map, y_proba_logreg, threshold_logreg = create_logreg_mdl(sm.add_constant(X_train), 
+                                                                                        sm.add_constant(X_test), 
+                                                                                        y_train, 
+                                                                                        y_test,
+                                                                                        subcohort, 
+                                                                                        features, 
+                                                                                        feature_rename_map,
+                                                                                        results_folder_logreg,
+                                                                                        scale_pos_weight = scale_pos_weight) 
             # LogReg model base - note that we don't keep the coefficients
-            _, _, y_proba_logreg_base = create_logreg_mdl(sm.add_constant(X_train_base), 
-                                                        sm.add_constant(X_test_base), 
-                                                        y_train, 
-                                                        y_test,
-                                                        subcohort, 
-                                                        features_base, 
-                                                        feature_rename_map,
-                                                        results_folder_logreg_base,
-                                                        scale_pos_weight = scale_pos_weight) 
+            _, _, y_proba_logreg_base, threshold_logreg_base = create_logreg_mdl(sm.add_constant(X_train_base), 
+                                                                                sm.add_constant(X_test_base), 
+                                                                                y_train, 
+                                                                                y_test,
+                                                                                subcohort, 
+                                                                                features_base, 
+                                                                                feature_rename_map,
+                                                                                results_folder_logreg_base,
+                                                                                scale_pos_weight = scale_pos_weight) 
             ### Get LogReg model metrics
             logreg_res.append(logreg_res_fmt)
             logreg_metric, axs1[i, 0] = get_clf_metrics(y_test, y_proba_logreg_base,
                                                         y_proba_logreg, 
                                                         f"{subcohort.replace('subcohort_', '')}", 
-                                                        axs1[i, 0])
+                                                        axs1[i, 0],
+                                                        threshold_logreg_base, threshold_logreg)
             # print(logreg_metric)
             # logreg_metric.to_csv('results/temp/logreg_metric.csv')
             logreg_metrics.append(logreg_metric)
@@ -1166,26 +1174,26 @@ def create_logreg_and_xgb_mdl_comp(cohort,
             # XGBoost model
             ########################
             # XGB model full
-            clf, y_proba_xgb, impt, perf_cv = create_mdl_xgb(X_train, y_train, X_test, 
-                                                            subcohort,
-                                                            results_folder_xgb, 
-                                                            imb_data = False,
-                                                            scale_pos_weight = scale_pos_weight,
-                                                            rename_map = feature_rename_map,
-                                                            multiindex = True)
+            clf, y_proba_xgb, impt, perf_cv, threshold_xgb = create_mdl_xgb(X_train, y_train, X_test, 
+                                                                            subcohort,
+                                                                            results_folder_xgb, 
+                                                                            imb_data = False,
+                                                                            scale_pos_weight = scale_pos_weight,
+                                                                            rename_map = feature_rename_map,
+                                                                            multiindex = True)
             assess_clf_perf_xgb(clf, X_test, y_test, 
                                 f'{results_folder_xgb}/{subcohort}/',
                                 features,
                                 feature_rename_map = None,
                                 labels = ['Negative (0)', 'Positive (1)'])
             ### XGB model base
-            clf, y_proba_xgb_base, _, _ = create_mdl_xgb(X_train_base, y_train, X_test_base,
-                                                        subcohort,
-                                                        results_folder_xgb_base,
-                                                        imb_data = False,
-                                                        scale_pos_weight = scale_pos_weight, 
-                                                        rename_map = feature_rename_map,
-                                                        multiindex = True)
+            clf, y_proba_xgb_base, _, _, threshold_xgb_base = create_mdl_xgb(X_train_base, y_train, X_test_base,
+                                                                            subcohort,
+                                                                            results_folder_xgb_base,
+                                                                            imb_data = False,
+                                                                            scale_pos_weight = scale_pos_weight, 
+                                                                            rename_map = feature_rename_map,
+                                                                            multiindex = True)
             assess_clf_perf_xgb(clf, X_test_base, y_test, 
                                 f'{results_folder_xgb_base}/{subcohort}/',
                                 features_base,
@@ -1194,14 +1202,16 @@ def create_logreg_and_xgb_mdl_comp(cohort,
             ### Get XGB model metrics
             xgb_metric, axs1[i, 1] = get_clf_metrics(y_test, y_proba_xgb_base, y_proba_xgb, 
                                                     f"{subcohort.replace('subcohort_', '')}", 
-                                                    axs1[i, 1])
+                                                    axs1[i, 1],
+                                                    threshold_xgb_base, threshold_xgb)
             xgb_metrics.append(xgb_metric)
             xgb_res.append((impt, perf_cv))
             print(xgb_res)
 
             # compare performance of xgb against logreg
             logreg_xgb_diff = comp_perf_logreg_xgb(y_test, y_proba_logreg, y_proba_xgb,
-                                                f"{subcohort.replace('subcohort_', '')}")
+                                                f"{subcohort.replace('subcohort_', '')}",
+                                                threshold_logreg, threshold_xgb)
             logreg_xgb_metrics_comp.append(logreg_xgb_diff)
 
             # Plot calibration curve and decision curve
