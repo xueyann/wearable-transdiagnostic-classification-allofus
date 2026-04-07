@@ -4,7 +4,6 @@ from scipy import stats
 from sklearn.metrics import roc_auc_score
 from lib.helpers import format_p
 
-
 def compute_midrank(x):
     sorted_idx = np.argsort(x)
     sorted_x = x[sorted_idx]
