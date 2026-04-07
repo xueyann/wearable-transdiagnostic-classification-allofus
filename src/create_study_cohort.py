@@ -8,7 +8,8 @@ from datetime import datetime
 import yaml
 import os
 import re
-from lib.helpers import find_strict_streaks, filter_sleep_feat_by_streak_memory_efficient, rmssd
+from lib.times_series import find_strict_streaks, filter_sleep_feat_by_streak_memory_efficient
+from lib.helpers import rmssd
 import warnings
 warnings.filterwarnings("ignore")
 
