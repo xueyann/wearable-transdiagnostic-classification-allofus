@@ -93,7 +93,7 @@ rmssd_features: [
                   # 'rem_perc',
                   # 'light_perc'
                   ]
-results_folder: 'results/base_mdl_20260324_adjust_threshold/'
+results_folder: 'results/base_mdl_20260330_fig_bigger_font/'
 
 excl_vars_ts: ['out_of_range_min', # we alr know this through fat burn minutes
                 'sedentary_minutes',

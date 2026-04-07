@@ -951,7 +951,7 @@ def create_metric_comp(logreg_metrics, xgb_metrics,
     print(df)
     
     plot_key_clf_metrics(df, [x.replace('subcohort_', '') for x in subcohort_cols],
-                         f'{output_folder}/static_mdl_perf_plot.png')
+                         f'{output_folder}/static_mdl_perf_plt.tiff')
     
     return
 
@@ -1002,7 +1002,7 @@ def plot_key_clf_metrics(df, subcohorts, savepath):
     fig, axs = plt.subplots(
         ncols=2,
         sharey=True,
-        figsize=(15, 9),
+        figsize=(12, 7),
         gridspec_kw={"wspace": 0.25}
     )
 
@@ -1042,24 +1042,29 @@ def plot_key_clf_metrics(df, subcohorts, savepath):
                 )
 
         # axs[i].axvline(0.0, linestyle="--", linewidth=1)
-        axs[i].set_xlabel(metric)
+        axs[i].set_xlabel(metric, fontsize = 14)
         axs[i].set_title(metric, fontsize = 15)
+
+        # set sizes for x ticks
+        axs[i].tick_params(axis='x', labelsize=14)
 
         i += 1
 
     # ---- shared y-axis ----
     axs[0].set_yticks(y_base)
     axs[0].set_yticklabels(subcohorts)
+    # set sizes for s ticks
+    axs[0].tick_params(axis='y', labelsize=14)
 
     # ---- legend & cleanup ----
-    axs[0].legend(frameon=False, title="Model")
+    axs[0].legend(frameon=False, title="Model", fontsize = 14)
 
     for ax in axs:
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
-    fig.savefig(savepath, dpi = 300)
+    fig.savefig(savepath, dpi = 150, pil_kwargs={"compression": "tiff_lzw"})
 
     return
 
@@ -1240,13 +1245,20 @@ def create_logreg_and_xgb_mdl_comp(cohort,
         fig2.tight_layout()
         fig3.tight_layout()
         fig1.savefig(fig1_path, dpi = 300)
-        fig2.savefig(fig2_path, dpi = 300)
+        fig2.savefig(fig2_path, dpi = 150, pil_kwargs={"compression": "tiff_lzw"})
         fig3.savefig(fig3_path, dpi = 300)
 
         return logreg_metrics, xgb_metrics, logreg_xgb_metrics_comp
 
 
 def main():
+
+    plt.rcParams.update({
+        'xtick.labelsize': 14,
+        'ytick.labelsize': 14,
+        'legend.fontsize': 13,
+        'axes.labelsize': 14
+    })
     config = yaml.safe_load(open('conf/base_mdl_fitbit.yaml'))
     scale_pos_weight = config['scale_pos_weight']
     ## read cohort and feature dataframes ##
@@ -1321,7 +1333,7 @@ def main():
                                                                     results_folder_logreg_base,
                                                                     results_folder_xgb_base,
                                                                     f'{results_folder}/static_mdl_proba_comp.png',
-                                                                    f'{results_folder}/static_mdl_calibration_curve.png',
+                                                                    f'{results_folder}/static_mdl_calibration_curve.tiff',
                                                                     f'{results_folder}/static_mdl_decision_curve.png',
                                                                     test_size = 0.3,
                                                                     scale_pos_weight = scale_pos_weight)

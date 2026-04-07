@@ -27,7 +27,7 @@ def main():
     subcohort_cols = config['subcohort_cols']
     # categorical features
     categorical_vars = config['categorical_vars']
-    continuous_vars = [x for x in original_demo_features + static_features + sumstats_features if x not in categorical_vars]
+    continuous_vars = [x for x in original_demo_features + static_features + survey_features + sumstats_features if x not in categorical_vars]
 
     ### Get all the dataframes ###
     person_df = pd.read_csv(config['person_df'])
@@ -55,6 +55,12 @@ def main():
         .merge(sumstats_df[['person_id'] + sumstats_features], on = 'person_id')
         # .dropna(subset = original_demo_features)
     df = df.dropna(subset = 'sex_at_birth')
+
+    ## continuous variables: cast unknown values to missing and ensure series is type float
+    for var in continuous_vars:
+        df.loc[df[var].isin(['Unknown', 'unknown']), var] = np.nan
+        # make sure series is as type float
+        df[var] = df[var].astype(float)
     
     # print(df.loc[df[static_features+original_demo_features].isna().any(axis=1), ['person_id'] + static_features+original_demo_features])
     # print(df.loc[df['sex_at_birth'].isna()].shape[0])

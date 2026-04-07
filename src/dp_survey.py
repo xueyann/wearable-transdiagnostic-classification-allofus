@@ -83,10 +83,11 @@ def process_survey_df(df, config):
     df.loc[person_no_quit, 'smoke_quit_age'] = np.nan
     # smoke years
     df = df.join(df_match_smoke_years[['smoke_years_cal']], how = 'left')
-    df.loc[df['smoke_years'].isna(), 'smoke_years'] = 0
+    df.loc[df['smoke_years'].isna(), 'smoke_years'] = 999 # replace smoke years with arbitrary large value
     df.loc[df['smoke_years_cal'].isna(), 'smoke_years_cal'] = 0
     # choose the longer one for smoke years
     df['smoke_years'] = df[['smoke_years', 'smoke_years_cal']].astype(int).max(axis=1)
+    df.loc[df['smoke_years']==999, 'smoke_years'] = 'unknown'
 
 
     # Fill na

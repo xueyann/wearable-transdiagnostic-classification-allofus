@@ -171,7 +171,7 @@ def generate_descriptives_split(df,
     cont_rows = []
     for var in continuous_vars:
         series = df[var]
-        n = series.count()
+        n = len(series)
         missing = series.isna().sum() # keep na in series so it can count missing
         mean = series.mean()
         std = series.std()
@@ -180,7 +180,7 @@ def generate_descriptives_split(df,
         q3 = series.quantile(0.75)
         cont_rows.append({
             'Variable': var,
-            'N (Missing %)': f"{n} ({missing:.2f})",
+            'N (Missing %)': f"{n} ({100*(missing/n):.2f})",
             'Mean (SD)': f"{mean:.2f} ({std:.2f})",
             'Median (IQR)': f"{median:.2f} ({q1:.2f} - {q3:.2f})"
         })
