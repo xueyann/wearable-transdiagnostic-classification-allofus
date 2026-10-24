@@ -1,0 +1,134 @@
+ICD10:
+  "cardiovascular_conditions":
+      "Hypertension": "I10-I15"
+      "Ischemic heart disease": "I20-I25"
+      "Cardiomyopathy": "I42-I43"
+      "Atrial fibrillation/flutter": "I48"
+      "Other arrhythmias": "I49"
+      "Heart failure": "I50"
+      "Cerebrovascular disease (stroke TIA)": "I60-I69"
+      "Atherosclerosis peripheral vascular disease": "I70-I79"
+      "Congenital heart defects": "Q20-Q28"
+      "Cardiac implants (stents pacemakers)": "Z95.*"
+
+  "respiratory_disease":
+      "Chronic lower respiratory diseases (bronchitis emphysema COPD asthma)": "J40-J47"
+      "Respiratory failure": "J96"
+      "Interstitial lung disease": "J84"
+      "Pneumoconiosis and other lung diseases due to external agents": "J60-J70"
+      "Obstructive sleep apnea": "G47.33"
+    #   "Allergic reactions anaphylaxis and unspecified adverse effects": "T78.2-T78.4"
+  
+  "endocrine_metabolic": 
+      "Diabetes mellitus": "E08-E14"
+      "Disorders of pituitary adrenal and other endocrine glands": "E22-E27"
+      "Hypothyroidism": "E03"
+      "Hyperthyroidism": "E05"
+    #   "Obesity": "E66"
+      "Disorders of lipoprotein metabolism and other lipidemias": "E78"
+  
+  "renal_disease": 
+      "Chronic kidney disease": "N18"
+      "Unspecified kidney failure": "N19"
+      "Dependence on renal dialysis": "Z99.2"
+      "Glomerular diseases": "N00-N07"
+  
+  "liver_disease": 
+      "Chronic liver disease and cirrhosis": "K70-K77"
+      "Chronic viral hepatitis": "B18"
+  
+  "neurologic_disorders": 
+      "Extrapyramidal and movement disorders (e.g. Parkinson’s disease)": "G20-G26"
+      "Alzheimer’s disease": "G30"
+      "Multiple sclerosis": "G35"
+      "Epilepsy and status epilepticus": "G40-G41"
+      "Sleep disorders (excluding obstructive sleep apnea covered separately)": "G47"
+  
+  "psychiatric_disorders": 
+      "Schizophrenia, schizoaffective, and other psychotic disorders": "F20-F29"
+      "Bipolar disorders": "F30-F31"
+      "Moderate to severe major depressive episode": "F32.2-F32.3"
+      "Recurrent moderate to severe major depressive disorder": "F33.2-F33.3"
+      "Generalized anxiety disorder": "F41.1"
+      "Post-traumatic stress disorder (PTSD)": "F43.1"
+  
+  "cancer": 
+      "All malignant neoplasms": "C00-C97"
+      "Polycythemia vera": "D45"
+      "Personal history of malignant neoplasm": "Z85"
+  
+  "autoimmune_inflammatory": 
+      "Rheumatoid arthritis": "M05-M06"
+      "Systemic lupus erythematosus": "M32"
+      "Inflammatory bowel disease (Crohn’s disease, ulcerative colitis)": "K50-K51"
+      "Psoriasis": "L40"
+      "Ankylosing spondylitis": "M45"
+  
+  "other_chronic_conditions": 
+      "Substance use disorders (alcohol, drugs)": "F10-F19"
+      "HIV disease": "B20"
+      "Asymptomatic HIV infection": "Z21"
+      "Other nutritional and metabolic disorders (excluding diabetes and obesity)": "E50-E64"
+
+ICD9:
+  "cardiovascular_conditions": 
+      "Hypertension": "401-405"
+      "Ischemic heart disease": "410-414"
+      "Cardiomyopathy": "428"
+      "Other arrhythmias": "427"
+      "Cerebrovascular disease (stroke, TIA)": "430-438"
+      "Atherosclerosis, peripheral vascular disease": "440-448"
+  
+  "respiratory_disease": 
+      "Chronic lower respiratory diseases (bronchitis, emphysema, COPD, asthma)": "490-496"
+      "Respiratory failure": "518.81-518.84"
+      "Interstitial lung disease": "516"
+      "Obstructive sleep apnea": "327.23"
+  
+  "endocrine_metabolic": 
+      "Diabetes mellitus": "250"
+      "Disorders of pituitary, adrenal, and other endocrine glands": "243-246"
+      "Other endocrine disorders": "255"
+      "Obesity": "278.0"
+      "Disorders of lipoprotein metabolism and other lipidemias": "272"
+  
+  "renal_disease": 
+      "Chronic kidney disease": "585"
+      "Unspecified kidney failure": "586"
+      "Dependence on renal dialysis": "V45.1"
+  
+  "liver_disease": 
+      "Chronic liver disease and cirrhosis": "571"
+      "Chronic viral hepatitis": "070"
+  
+  "neurologic_disorders": 
+      "Extrapyramidal and movement disorders (e.g., Parkinson’s disease)": "332"
+      "Alzheimer’s disease": "331.0"
+      "Multiple sclerosis": "340"
+      "Epilepsy and status epilepticus": "345"
+      "Sleep disorders (excluding obstructive sleep apnea covered separately)": "327"
+  
+  "psychiatric_disorders": 
+      "Schizophrenia, schizoaffective, and other psychotic disorders": "295"
+      "Bipolar disorders": "296.0-296.1"
+      "Moderate to severe major depressive episode": "296.4-296.8"
+      "Recurrent moderate to severe major depressive disorder": "296.2-296.3"
+      "Generalized anxiety disorder": "300"
+  
+  "cancer": 
+      "All malignant neoplasms": "140-209"
+      "Polycythemia vera": "238.4"
+  
+  "autoimmune_inflammatory": 
+      "Rheumatoid arthritis": "714"
+      "Systemic lupus erythematosus": "710.0"
+      "Inflammatory bowel disease (Crohn’s disease, ulcerative colitis)": "555-556"
+      "Psoriasis": "696.1"
+      "Ankylosing spondylitis": "720.0"
+  
+  "other_chronic_conditions": 
+      "Substance use disorders (alcohol, drugs)": "303-305"
+      "HIV disease": "042"
+      "Asymptomatic HIV infection": "042"
+      "Other nutritional and metabolic disorders (excluding diabetes and obesity)": "260-263"
+

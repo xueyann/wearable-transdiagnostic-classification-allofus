@@ -1,0 +1,155 @@
+hypnotics_and_sedatives: [ # ref: https://www.ncbi.nlm.nih.gov/books/NBK547943/
+                        # antihistamines --> shall we exclude antihistamines as they are typically not used long term and insomnia is alr excluded?
+                        # 'diphenhydramine',
+                        # 'doxylamine',
+                        # 'hydroxyzine',
+                        # barbiturates
+                        'secobarbital',
+                        'amobarbital',
+                        'butabarbital',
+                        'pentobarbital',
+                        # benzo
+                        'alprazolam',
+                        'diazepam',
+                        'remimazolam',
+                        'temazepam',
+                        'triazolam',
+                        'flurazepam',
+                        'estazolam',
+                        'quazepam',
+                        # benzodiazepine receptor agonists Z drugs
+                        'zolpidem',
+                        'zaleplon',
+                        'eszopiclone',
+                        # melatonin and analogues
+                        'ramelteon',
+                        'melatonin',
+                        # orexin receptor antagonists
+                        'suvorexant',
+                        'lemborexant']
+ssri: ['citalopram',
+      'escitalopram',
+      'fluoxetine',
+      'fluvoxamine',
+      'paroxetine',
+      'sertraline']
+snri: ['desvenlafaxine',
+        'duloxetine',
+        'levomilnacipran',
+        'milnacipran',
+        'sibutramine',
+        'tramadol',
+        'venlafaxine']
+atypical_antipsychotics: ['aripiprazole',
+                        'olanzapine',
+                        'quetiapine',
+                        'risperidone',
+                        'ziprasidone',
+                        'paliperidone',
+                        'asenapine',
+                        'lurasidone',
+                        'iloperidone',
+                        'brexpiprazole',
+                        'cariprazine',
+                        'clozapine']
+typical_antipsychotics: ['haloperidol',
+                        'chlorpromazine',
+                        'fluphenazine',
+                        'perphenazine',
+                        'thioridazine',
+                        'thiothixene',
+                        'trifluoperazine',
+                        'loxapine',
+                        'molindone',
+                        'pimozide']
+stimulants: ['methylphenidate',
+            'amphetamine',
+            'dextroamphetamine',
+            'lisdexamfetamine']
+anticonvulsants: [ # sodium channel blockers
+                'carbamazepine',
+                'oxcarbazepine',
+                'lamotrigine',
+                # GABAergic drugs
+                'gabapentin',
+                'pregabalin',
+                'tiagabine',
+                'vigabatrin',
+                'phenobarbital',
+                'clonazepam',
+                # mixed mechanism
+                'valproate',
+                'divalproex',
+                'topiramate',
+                # SV2A ligands
+                'levetiracetam'
+                ]
+anxiolytics: ['diazepam',
+                'lorazepam',
+                'alprazolam',
+                'clonazepam',
+                'oxazepam',
+                'chlordiazepoxide',
+                'clobazam',
+                # 'hydroxyzine',      # antihistamine used for anxiety/sleep
+                'buspirone',        # non-sedating, but still relevant in anxiety context
+                # 'pregabalin',       # used off-label for anxiety and insomnia
+                # 'gabapentin',       # same as above
+                'quetiapine',        # antipsychotic, often used off-label for anxiety and sleep
+                'propranolol'
+                ]
+beta_blockers: ['metoprolol',
+                'atenolol',
+                'propranolol',
+                'bisoprolol',
+                'carvedilol',
+                'nebivolol',
+                'sotalol'
+                ]
+non_dhp_calcium_channel_blockers: [
+  'verapamil',
+  'diltiazem'
+]
+
+# dhp_calcium_channel_blockers: [
+#   'amlodipine',
+#   'nifedipine',
+#   'felodipine'
+# ]
+
+antiarrhythmics: [
+  'amiodarone',
+  'flecainide',
+  'propafenone',
+  'quinidine',
+  'disopyramide',
+  'dofetilide',
+  'ibutilide']
+
+sympathomimetics: [
+  ### SABA: short acting beta agonist
+  # 'albuterol',
+  # 'salbutamol',
+  # 'terbutaline',
+  ### LABA: long acting beta agonist
+  # 'formoterol',
+  # 'salmeterol',
+  ### Acute effect
+  # 'dopamine',
+  # 'dobutamine',
+  # 'epinephrine',
+  # 'norepinephrine',
+  # decongestant clinical use
+  'pseudoephedrine', 
+  'phenylephrine'
+]
+
+thyroid_hormones: [
+  'levothyroxine',
+  'liothyronine'
+]
+
+antithyroid_agents: [
+  'methimazole',
+  'propylthiouracil'
+]

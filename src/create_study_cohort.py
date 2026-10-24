@@ -8,7 +8,7 @@ from datetime import datetime
 import yaml
 import os
 import re
-from lib.times_series import find_strict_streaks, filter_sleep_feat_by_streak_memory_efficient
+from lib.time_series import find_strict_streaks, filter_sleep_feat_by_streak_memory_efficient
 from lib.helpers import rmssd
 import warnings
 warnings.filterwarnings("ignore")
@@ -607,6 +607,7 @@ def process_fitbit_summary(fpath, person_df, attrition, excl_drug_minmax, osa_de
     df = filter_sleep_feat_by_streak_memory_efficient(df, streaks, date_col = 'date')
 
     if streak_save_path:
+        os.makedirs(os.path.dirname(streak_save_path), exist_ok=True)
         streaks.to_csv(streak_save_path, index=False)
 
     return streaks, df, attrition

@@ -2,13 +2,9 @@ import sys
 sys.path.append('./')
 import pandas as pd
 import numpy as np
-import torch
 import yaml
 import os
-import torch.optim as optim
-import torch.nn as nn
 import itertools
-import torch.nn.functional as F
 from functools import reduce
 import multiprocessing
 import re
@@ -34,10 +30,6 @@ from sklearn.calibration import calibration_curve
 import statsmodels.api as sm
 from statsmodels.stats.multitest import multipletests
 
-from lib.transformer import SleepDataset, TransformerClassifier, ClassifierHead, \
-    get_train_val_test_dataloader, compute_mean_and_std_batch, \
-    compute_mean_and_std_static_batch, normalise_features, get_pred, \
-    assess_clf_perf
 from lib.helpers import format_p
 from src.mdl_sleep import assess_clf_perf as assess_clf_perf_xgb
 from imblearn.over_sampling import RandomOverSampler
@@ -273,13 +265,15 @@ def create_mdl_xgb(X_train, y_train, X_test,
             n_jobs = multiprocessing.cpu_count() // 2, 
             tree_method = "hist",
             enable_categorical = True,
+            random_state = 42,
             scale_pos_weight = (y_train == 0).sum()/(y_train == 1).sum()
         )
     else:
         xgb_model = xgb.XGBClassifier(
             n_jobs = multiprocessing.cpu_count() // 2, 
             tree_method = "hist",
-            enable_categorical = True
+            enable_categorical = True,
+            random_state = 42,
         )
     clf = GridSearchCV(
         xgb_model,
@@ -351,7 +345,7 @@ def eval_xgb_cv(X_train, y_train, params, n_splits = 5):
         X_tr, X_val = X_train.iloc[tr_idx], X_train.iloc[val_idx]
         y_tr, y_val = y_train.iloc[tr_idx], y_train.iloc[val_idx]
 
-        model = xgb.XGBClassifier(**params)
+        model = xgb.XGBClassifier(**params, random_state=42)
         model.fit(X_tr, y_tr)
 
         # --- Performance ---
