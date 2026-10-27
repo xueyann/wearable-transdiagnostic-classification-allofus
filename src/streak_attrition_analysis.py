@@ -45,19 +45,65 @@ def load_primary_config() -> dict:
     return yaml.safe_load(config_text)["total_cohort"]
 
 
-def prepare_daily_fitbit(path: str, person_ids: pd.Series) -> pd.DataFrame:
-    """Apply the primary pipeline's daily-record eligibility processing."""
+def prepare_daily_fitbit(
+    path: str,
+    person_ids: pd.Series,
+    min_hr_zone_minutes: int | None = None,
+    min_steps: int | None = None,
+) -> pd.DataFrame:
+    """Normalize daily summaries and apply optional valid-day QC before features.
+
+    Thresholds are applied after main-sleep and nap records are reconciled, but
+    before feature engineering, complete-case filtering, and streak finding.
+    ``hr_zone_minutes`` sums the four exported heart-rate zone-minute fields;
+    it remains a proxy pending confirmation that the fields exhaustively encode
+    observed heart-rate minutes in the source CDR.
+    """
     path_obj = Path(path)
     paths = sorted(path_obj.glob("*.parquet")) if path_obj.is_dir() else [path_obj]
     return pd.concat(
-        [_prepare_daily_fitbit_file(file_path, person_ids) for file_path in paths],
+        [
+            _prepare_daily_fitbit_file(
+                file_path, person_ids, min_hr_zone_minutes, min_steps
+            )
+            for file_path in paths
+        ],
         ignore_index=True,
     )
 
 
-def _prepare_daily_fitbit_file(path: Path, person_ids: pd.Series) -> pd.DataFrame:
-    """Process one source partition; partitions are participant-disjoint."""
+def _prepare_daily_fitbit_file(
+    path: Path,
+    person_ids: pd.Series,
+    min_hr_zone_minutes: int | None,
+    min_steps: int | None,
+) -> pd.DataFrame:
+    """Normalize one summary shard and apply optional valid-day thresholds."""
     df = pd.read_parquet(path)
+    df = df.loc[df["person_id"].isin(person_ids)].copy()
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["is_main_sleep"] = df["is_main_sleep"].replace({"false": False, "true": True})
+    df["hr_zone_minutes"] = df[
+        ["fat_burn_min", "cardio_min", "peak_min", "out_of_range_min"]
+    ].sum(axis=1)
+    df["hr_zone_coverage"] = df["hr_zone_minutes"] / 1_440
+
+    naps = (
+        df.loc[df["is_main_sleep"] == False, ["person_id", "date", "minute_in_bed"]]
+        .groupby(["person_id", "date"], as_index=False)["minute_in_bed"]
+        .sum()
+        .rename(columns={"minute_in_bed": "nap_min"})
+    )
+    df = df.loc[df["is_main_sleep"] == True].merge(
+        naps, on=["person_id", "date"], how="left"
+    )
+    df["nap_min"] = df["nap_min"].fillna(0)
+
+    if min_hr_zone_minutes is not None:
+        df = df.loc[df["hr_zone_minutes"] >= min_hr_zone_minutes]
+    if min_steps is not None:
+        df = df.loc[df["steps"] >= min_steps]
+
     for col in ["very_active_minutes", "fairly_active_minutes", "lightly_active_minutes"]:
         df[col] = df[col].fillna(0)
     df["sleep_efficiency"] = df["minute_asleep"] / df["minute_in_bed"]
@@ -74,14 +120,7 @@ def _prepare_daily_fitbit_file(path: Path, person_ids: pd.Series) -> pd.DataFram
     df["peak_hr_to_very_active_ratio"] = (
         df["peak_min"] / df["very_active_minutes"]
     ).fillna(0)
-    df = df.loc[df["person_id"].isin(person_ids)].copy()
     df = df.drop(columns=["calories_bmr", "elevation", "floors", "minute_restless"])
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df["is_main_sleep"] = df["is_main_sleep"].replace({"false": False, "true": True})
-    naps = df.loc[df["is_main_sleep"] == False, ["person_id", "date", "minute_in_bed"]]
-    naps = naps.rename(columns={"minute_in_bed": "nap_min"})
-    df = df.loc[df["is_main_sleep"] == True].merge(naps, how="left")
-    df["nap_min"] = df["nap_min"].fillna(0)
     df = df.drop(columns="is_main_sleep").dropna()
     if df.shape[0] != df[["person_id", "date"]].drop_duplicates().shape[0]:
         raise ValueError("Expected one eligible main-sleep row per person and date.")

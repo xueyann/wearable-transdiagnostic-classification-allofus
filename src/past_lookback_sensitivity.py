@@ -10,12 +10,18 @@ from src.create_study_cohort import filter_streak_by_age,get_cond_df
 from src.streak_attrition_analysis import load_primary_config,prepare_daily_fitbit
 from src.streak_timing_sensitivity_models import (add_static,complete_frame,eligible_controls,features_and_labels,latest_streaks,performance_rows,markdown_table)
 from src.reviewer_sensitivity_performance_tests import fit_predict
-OUT=ROOT/'results'/'past_lookback_sensitivity_7day'
+OUT=ROOT/'results'/'past_lookback_sensitivity_7day_preindex'
 
 def select(streaks,diag,cond,years):
- d=diag[diag.subcohort.eq(cond)].groupby('person_id',as_index=False).condition_start_date.agg(earliest='min',latest='max')
- x=streaks.merge(d); x=x[x.streak_start.ge(x.earliest)]
- if years is not None: x=x[(x.streak_start-x.latest).dt.days.le(years*365)]
+ d=diag[diag.subcohort.eq(cond)][['person_id','condition_start_date']]
+ x=streaks.merge(d, how='inner')
+ # Only diagnoses observed on/before this candidate index may establish past disease.
+ x=x[x.condition_start_date.le(x.streak_start)]
+ if years is not None:
+  latest=x.groupby(['person_id','streak_start','streak_end'],as_index=False).condition_start_date.max()
+  x=latest[(latest.streak_start-latest.condition_start_date).dt.days.le(years*365)]
+ else:
+  x=x[['person_id','streak_start','streak_end']].drop_duplicates()
  return x.sort_values('streak_start').groupby('person_id',as_index=False).tail(1)[['person_id','streak_start','streak_end']]
 
 def main():
@@ -30,7 +36,7 @@ def main():
    for model in ('logistic','xgboost'):
     _,y,prob,est=fit_predict(data,features,label,model); rows+=performance_rows(policy,'7_consecutive_days',label,model,y,prob,nc,nn,est)
  perf=pd.DataFrame(rows); sam=pd.DataFrame(samples); perf.to_csv(OUT/'performance.csv',index=False); sam.to_csv(OUT/'sample_sizes.csv',index=False)
- lines=['# Seven-day past-diagnosis lookback sensitivity','', 'Cases use the latest eligible 7-day streak after first mapped diagnosis. `no_lookback` has no upper recency limit; `current_rules` uses existing disease-specific limits; `halved_rules` uses half those limits. Controls use latest 7-day streak.','']
+ lines=['# Seven-day past-diagnosis lookback sensitivity','', 'Cases use the latest eligible 7-day streak with a qualifying diagnosis on/before index; recency uses the latest qualifying pre-index diagnosis. `no_lookback` has no upper recency limit; `current_rules` uses existing disease-specific limits; `halved_rules` uses half those limits. Controls use latest 7-day streak.','']
  for pol in policies:
   lines += ['## '+pol,'',markdown_table(sam[sam.policy.eq(pol)]),'']
   tab=[]
